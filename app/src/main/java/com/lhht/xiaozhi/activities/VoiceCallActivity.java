@@ -358,6 +358,8 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                     // 处理语音识别结果
                     String recognizedText = jsonMessage.getString("text");
                     updateRecognizedText(recognizedText);
+                    // 打断当前音频播放
+                    stopCurrentAudio();
                     break;
                     
                 case "tts":
@@ -369,12 +371,29 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         }
     }
 
+    private void stopCurrentAudio() {
+        audioExecutor.execute(() -> {
+            try {
+                if (audioTrack != null && isPlaying) {
+                    audioTrack.pause();
+                    audioTrack.flush();
+                    isPlaying = false;
+                    // 清空波形显示
+                    updateAiWaveform(new float[0]);
+                }
+            } catch (Exception e) {
+                Log.e("VoiceCall", "停止音频播放失败", e);
+            }
+        });
+    }
+
     private void handleTTSMessage(JSONObject message) {
         try {
             String state = message.getString("state");
             switch (state) {
                 case "start":
-                    // AI开始说话
+                    // AI开始说话，确保之前的音频已停止
+                    stopCurrentAudio();
                     updateCallStatus("AI正在说话...");
                     break;
                     
