@@ -5,24 +5,35 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.RadioButton;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.textfield.TextInputEditText;
 import com.lhht.xiaozhi.R;
 import java.util.ArrayList;
 
 public class WsUrlAdapter extends RecyclerView.Adapter<WsUrlAdapter.ViewHolder> {
     private final ArrayList<String> wsUrls;
     private final OnUrlDeleteListener listener;
+    private int selectedPosition = 0; // 当前选中的位置
+    private String selectedUrl = ""; // 当前选中的URL
 
     public interface OnUrlDeleteListener {
         void onDelete(String url);
     }
 
-    public WsUrlAdapter(ArrayList<String> wsUrls, OnUrlDeleteListener listener) {
+    public WsUrlAdapter(ArrayList<String> wsUrls, String currentUrl, OnUrlDeleteListener listener) {
         this.wsUrls = new ArrayList<>(wsUrls);
         this.listener = listener;
+        // 设置初始选中位置
+        this.selectedUrl = currentUrl;
+        for (int i = 0; i < wsUrls.size(); i++) {
+            if (wsUrls.get(i).equals(currentUrl)) {
+                selectedPosition = i;
+                break;
+            }
+        }
     }
 
     public void addUrl(String url) {
@@ -35,11 +46,22 @@ public class WsUrlAdapter extends RecyclerView.Adapter<WsUrlAdapter.ViewHolder> 
         if (position != -1) {
             wsUrls.remove(position);
             notifyItemRemoved(position);
+            // 如果删除的是选中的项，重置选择
+            if (position == selectedPosition) {
+                selectedPosition = 0;
+                selectedUrl = wsUrls.isEmpty() ? "" : wsUrls.get(0);
+            } else if (position < selectedPosition) {
+                selectedPosition--;
+            }
         }
     }
 
     public ArrayList<String> getUrls() {
         return new ArrayList<>(wsUrls);
+    }
+
+    public String getSelectedUrl() {
+        return selectedUrl;
     }
 
     @NonNull
@@ -52,7 +74,7 @@ public class WsUrlAdapter extends RecyclerView.Adapter<WsUrlAdapter.ViewHolder> 
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        holder.bind(wsUrls.get(position));
+        holder.bind(wsUrls.get(position), position == selectedPosition);
     }
 
     @Override
@@ -61,22 +83,25 @@ public class WsUrlAdapter extends RecyclerView.Adapter<WsUrlAdapter.ViewHolder> 
     }
 
     class ViewHolder extends RecyclerView.ViewHolder {
-        private final EditText urlInput;
+        private final TextInputEditText urlInput;
         private final ImageButton deleteButton;
+        private final RadioButton selectButton;
         private TextWatcher textWatcher;
 
         ViewHolder(View view) {
             super(view);
             urlInput = view.findViewById(R.id.wsUrlInput);
             deleteButton = view.findViewById(R.id.deleteButton);
+            selectButton = view.findViewById(R.id.selectButton);
         }
 
-        void bind(String url) {
+        void bind(String url, boolean isSelected) {
             if (textWatcher != null) {
                 urlInput.removeTextChangedListener(textWatcher);
             }
 
             urlInput.setText(url);
+            selectButton.setChecked(isSelected);
 
             textWatcher = new TextWatcher() {
                 @Override
@@ -90,6 +115,9 @@ public class WsUrlAdapter extends RecyclerView.Adapter<WsUrlAdapter.ViewHolder> 
                     int pos = getAdapterPosition();
                     if (pos != RecyclerView.NO_POSITION) {
                         wsUrls.set(pos, s.toString());
+                        if (pos == selectedPosition) {
+                            selectedUrl = s.toString();
+                        }
                     }
                 }
             };
@@ -102,6 +130,17 @@ public class WsUrlAdapter extends RecyclerView.Adapter<WsUrlAdapter.ViewHolder> 
                     if (listener != null) {
                         listener.onDelete(url1);
                     }
+                }
+            });
+
+            selectButton.setOnClickListener(v -> {
+                int newPosition = getAdapterPosition();
+                if (newPosition != RecyclerView.NO_POSITION && newPosition != selectedPosition) {
+                    int oldPosition = selectedPosition;
+                    selectedPosition = newPosition;
+                    selectedUrl = wsUrls.get(newPosition);
+                    notifyItemChanged(oldPosition);
+                    notifyItemChanged(newPosition);
                 }
             });
         }

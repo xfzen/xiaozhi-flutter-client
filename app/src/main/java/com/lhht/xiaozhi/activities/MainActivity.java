@@ -215,6 +215,15 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
         audioExecutor = Executors.newSingleThreadExecutor();
         mainHandler = new Handler(getMainLooper());
 
+        // 设置按钮点击事件
+        if (connectButton != null) connectButton.setOnClickListener(v -> toggleConnection());
+        if (recordButton != null) recordButton.setOnClickListener(v -> startVoiceCall());
+        if (sendButton != null) sendButton.setOnClickListener(v -> sendMessage());
+        if (settingsButton != null) settingsButton.setOnClickListener(v -> openSettings());
+
+        // 检查并请求权限
+        checkPermissions();
+
         // 初始化音频播放器
         int minBufferSize = AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
@@ -255,15 +264,6 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
         decoderHandle = opusUtils.createDecoder(SAMPLE_RATE, 1);
         decodedBuffer = new short[OPUS_FRAME_SIZE];
         recordBuffer = new short[OPUS_FRAME_SIZE];
-
-        // 设置按钮点击事件
-        if (connectButton != null) connectButton.setOnClickListener(v -> toggleConnection());
-        if (recordButton != null) recordButton.setOnClickListener(v -> startVoiceCall());
-        if (sendButton != null) sendButton.setOnClickListener(v -> sendMessage());
-        if (settingsButton != null) settingsButton.setOnClickListener(v -> openSettings());
-
-        // 检查并请求权限
-        checkPermissions();
     }
 
     private void checkPermissions() {
