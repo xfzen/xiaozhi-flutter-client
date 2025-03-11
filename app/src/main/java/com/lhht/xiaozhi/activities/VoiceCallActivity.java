@@ -14,6 +14,7 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -24,6 +25,9 @@ import com.lhht.xiaozhi.settings.SettingsManager;
 import com.lhht.xiaozhi.views.RippleWaveView;
 import com.lhht.xiaozhi.websocket.WebSocketManager;
 import vip.inode.demo.opusaudiodemo.utils.OpusUtils;
+import com.skydoves.colorpickerview.ColorPickerDialog;
+import com.skydoves.colorpickerview.ColorEnvelope;
+import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener;
 
 import org.json.JSONObject;
 import java.lang.reflect.Field;
@@ -47,6 +51,12 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
     private ImageButton muteButton;
     private ImageButton hangupButton;
     private ImageButton speakerButton;
+    private ImageButton colorPickerButton;
+    private View rootView;
+    private View backgroundView;
+    private View topBar;
+    private View controlButtons;
+    private int currentBackgroundColor;
     
     private boolean isMuted = false;
     private boolean isSpeakerOn = true;
@@ -74,61 +84,76 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         super.onCreate(savedInstanceState);
         
         // 设置沉浸式状态栏和导航栏
-        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS | WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
         getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
         
-        // 设置沉浸式标志
-        View decorView = getWindow().getDecorView();
-        int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-        decorView.setSystemUiVisibility(flags);
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+
+        setContentView(R.layout.activity_voice_call);
         
-        // 适配魅族手机
-        try {
-            String brand = Build.BRAND.toLowerCase();
-            if (brand.contains("meizu")) {
-                WindowManager.LayoutParams lp = getWindow().getAttributes();
-                Field darkFlag = WindowManager.LayoutParams.class.getDeclaredField("MEIZU_FLAG_DARK_STATUS_BAR_ICON");
-                Field meizuFlags = WindowManager.LayoutParams.class.getDeclaredField("meizuFlags");
-                darkFlag.setAccessible(true);
-                meizuFlags.setAccessible(true);
-                int bit = darkFlag.getInt(null);
-                int value = meizuFlags.getInt(lp);
-                value &= ~bit;
-                meizuFlags.setInt(lp, value);
-                getWindow().setAttributes(lp);
+        // 获取实际的状态栏高度并设置topBar的margin
+        View topBar = findViewById(R.id.topBar);
+        if (topBar != null) {
+            int statusBarHeight = 0;
+            int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (resourceId > 0) {
+                statusBarHeight = getResources().getDimensionPixelSize(resourceId);
             }
-        } catch (Exception e) {
-            Log.e("VoiceCall", "适配魅族导航栏失败", e);
+            ((ViewGroup.MarginLayoutParams) topBar.getLayoutParams()).topMargin = statusBarHeight;
+            topBar.requestLayout();
         }
         
-        setContentView(R.layout.activity_voice_call);
+        // 获取实际的导航栏高度并设置bottomBar的margin
+        View controlButtons = findViewById(R.id.controlButtons);
+        if (controlButtons != null) {
+            int navigationBarHeight = 0;
+            int resourceId = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+            if (resourceId > 0) {
+                navigationBarHeight = getResources().getDimensionPixelSize(resourceId);
+            }
+            ((ViewGroup.MarginLayoutParams) controlButtons.getLayoutParams()).bottomMargin = navigationBarHeight + 48;
+            controlButtons.requestLayout();
+        }
         
         initViews();
         initAudio();
         setupListeners();
-        initWebSocket();  // 确保WebSocket最后初始化
+        initWebSocket();
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
-            // 重新设置沉浸式标志
-            View decorView = getWindow().getDecorView();
-            int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
-            decorView.setSystemUiVisibility(flags);
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
         }
     }
 
+    private void hideSystemUI() {
+        View decorView = getWindow().getDecorView();
+        decorView.setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_FULLSCREEN
+        );
+    }
+
     private void initViews() {
+        // 先从设置中读取保存的颜色
+        SettingsManager settingsManager = new SettingsManager(this);
+        currentBackgroundColor = settingsManager.getBackgroundColor(Color.BLACK);
+
         aiMessageText = findViewById(R.id.aiMessageText);
         recognizedText = findViewById(R.id.recognizedText);
         callStatusText = findViewById(R.id.callStatusText);
@@ -137,6 +162,37 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         muteButton = findViewById(R.id.muteButton);
         hangupButton = findViewById(R.id.hangupButton);
         speakerButton = findViewById(R.id.speakerButton);
+        colorPickerButton = findViewById(R.id.colorPickerButton);
+        rootView = findViewById(R.id.rootLayout);
+        backgroundView = findViewById(R.id.backgroundView);
+        topBar = findViewById(R.id.topBar);
+        controlButtons = findViewById(R.id.controlButtons);
+        
+        // 获取状态栏高度
+        int statusBarHeight = 0;
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            statusBarHeight = getResources().getDimensionPixelSize(resourceId);
+        }
+        
+        // 获取导航栏高度
+        int navigationBarHeight = 0;
+        resourceId = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            navigationBarHeight = getResources().getDimensionPixelSize(resourceId);
+        }
+
+        // 设置顶部和底部边距
+        ViewGroup.MarginLayoutParams topParams = (ViewGroup.MarginLayoutParams) topBar.getLayoutParams();
+        topParams.topMargin = statusBarHeight;
+        topBar.setLayoutParams(topParams);
+
+        ViewGroup.MarginLayoutParams bottomParams = (ViewGroup.MarginLayoutParams) controlButtons.getLayoutParams();
+        bottomParams.bottomMargin = navigationBarHeight;
+        controlButtons.setLayoutParams(bottomParams);
+
+        // 设置初始背景色
+        backgroundView.setBackgroundColor(currentBackgroundColor);
     }
 
     private void initWebSocket() {
@@ -218,9 +274,9 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         muteButton.setOnClickListener(v -> toggleMute());
         hangupButton.setOnClickListener(v -> endCall());
         speakerButton.setOnClickListener(v -> toggleSpeaker());
+        colorPickerButton.setOnClickListener(v -> showColorPicker());
 
         // 点击屏幕打断AI回答
-        View rootView = findViewById(android.R.id.content);
         rootView.setOnClickListener(v -> interruptAiResponse());
     }
 
@@ -676,6 +732,26 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                 Log.e("VoiceCall", "处理音频数据失败", e);
             }
         });
+    }
+
+    private void showColorPicker() {
+        new ColorPickerDialog.Builder(this)
+            .setTitle("选择背景颜色")
+            .setPreferenceName("MyColorPickerDialog")
+            .setPositiveButton("确定", 
+                (ColorEnvelopeListener) (envelope, fromUser) -> {
+                    currentBackgroundColor = envelope.getColor();
+                    backgroundView.setBackgroundColor(currentBackgroundColor);
+                    // 保存颜色设置
+                    SettingsManager settingsManager = new SettingsManager(this);
+                    settingsManager.saveBackgroundColor(currentBackgroundColor);
+                })
+            .setNegativeButton("取消", 
+                (dialogInterface, i) -> dialogInterface.dismiss())
+            .attachAlphaSlideBar(true)
+            .attachBrightnessSlideBar(true)
+            .setBottomSpace(12)
+            .show();
     }
 
     @Override

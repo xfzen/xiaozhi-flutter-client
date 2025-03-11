@@ -1,19 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/call_background"
-    android:fitsSystemWindows="true">
+    android:layout_height="match_parent">
 
     <!-- 模糊背景 -->
-    <com.google.android.material.imageview.ShapeableImageView
-        android:id="@+id/blurBackground"
+    <View
+        android:id="@+id/backgroundView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:alpha="0.95"
-        app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.None"/>
+        android:alpha="0.95"/>
 
     <!-- 顶部状态栏 -->
     <LinearLayout
@@ -94,7 +91,7 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:padding="32dp"
-        android:layout_marginBottom="48dp"
+        android:layout_marginBottom="0dp"
         app:layout_constraintBottom_toBottomOf="parent">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -128,5 +125,17 @@
             android:src="@drawable/ic_volume_up"/>
 
     </LinearLayout>
+
+    <!-- 添加颜色选择按钮到右上角 -->
+    <ImageButton
+        android:id="@+id/colorPickerButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_margin="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_color_lens"
+        android:contentDescription="选择背景颜色"
+        app:layout_constraintTop_toBottomOf="@id/topBar"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout> 
