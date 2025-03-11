@@ -3,6 +3,7 @@ package com.lhht.xiaozhi.activities;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -26,6 +27,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.imageview.ShapeableImageView;
+import com.google.android.material.button.MaterialButton;
 import com.lhht.xiaozhi.R;
 import com.lhht.xiaozhi.settings.SettingsManager;
 import com.lhht.xiaozhi.views.WaveformView;
@@ -53,7 +56,7 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
     private SettingsManager settingsManager;
     private TextView connectionStatus;
     private Button connectButton;
-    private ImageButton recordButton;
+    private MaterialButton recordButton;
     private EditText messageInput;
     private Button sendButton;
     private AudioRecord audioRecord;
@@ -89,6 +92,7 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
     private long lastMessageTime = 0;
     private String pendingText = null;
     private volatile String pendingAudioText = null;
+    private ShapeableImageView avatarImage;
 
     // 添加一个消息队列类来处理消息顺序
     private static class TTSMessage {
@@ -107,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
     private volatile TTSMessage currentTTSMessage = null;
     private volatile String currentSessionId = null;
 
-    // 修改 MessageHandler 类
+    // MessageHandler 内部类
     private class MessageHandler {
         private static final int MAX_TEXT_LENGTH = 100; // 长文本阈值
         
@@ -118,12 +122,10 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
         public synchronized void processMessage(String text) {
             if (text == null || text.isEmpty()) return;
             
-            // 直接在当前线程处理，避免线程切换开销
             String[] parts = extractEmojiAndText(text);
             String emoji = parts[0];
             String cleanText = parts[1];
             
-            // 使用 postAtFrontOfQueue 确保最高优先级
             mainHandler.postAtFrontOfQueue(() -> {
                 try {
                     updateEmojiView(emoji);
@@ -150,38 +152,6 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
             
             return new String[]{emoji, cleanText};
         }
-        
-        private void updateDisplay(String emoji, String text) {
-            // 使用 post 而不是 postDelayed，减少延迟
-            mainHandler.post(() -> {
-                try {
-                    // 更新表情
-                    updateEmojiView(emoji);
-                    // 更新文本
-                    updateTextView(text);
-                } catch (Exception e) {
-                    Log.e("XiaoZhi", "更新显示失败", e);
-                }
-            });
-        }
-        
-        private void updateEmojiView(String emoji) {
-            if (emoji.isEmpty()) {
-                emojiText.setVisibility(View.GONE);
-            } else {
-                emojiText.setText(emoji);
-                emojiText.setVisibility(View.VISIBLE);
-            }
-        }
-        
-        private void updateTextView(String text) {
-            if (text.isEmpty()) {
-                messageText.setVisibility(View.GONE);
-            } else {
-                messageText.setText(text);
-                messageText.setVisibility(View.VISIBLE);
-            }
-        }
     }
 
     // 创建消息处理器实例
@@ -191,9 +161,23 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.i("MainActivity", "应用启动");
+        
+        // 设置沉浸式状态栏和导航栏
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        
+        // 设置沉浸式标志
+        View decorView = getWindow().getDecorView();
+        int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        decorView.setSystemUiVisibility(flags);
+        
         setContentView(R.layout.activity_main);
 
         // 初始化视图
+        avatarImage = findViewById(R.id.avatarImage);
         connectionStatus = findViewById(R.id.connectionStatus);
         connectButton = findViewById(R.id.connectButton);
         recordButton = findViewById(R.id.recordButton);
@@ -202,6 +186,15 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
         ImageButton settingsButton = findViewById(R.id.settingsButton);
         emojiText = findViewById(R.id.emojiText);
         messageText = findViewById(R.id.messageText);
+        
+        // 设置输入框的回车键监听
+        messageInput.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) {
+                sendMessage();
+                return true;
+            }
+            return false;
+        });
         
         Log.i("MainActivity", "应用启动");
 
@@ -395,14 +388,12 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
             String type = jsonMessage.getString("type");
             String state = jsonMessage.optString("state");
             
-            // 记录消息接收时间和处理
             Log.d("XiaoZhi", "收到消息: " + message + " 时间: " + System.nanoTime());
             
             if ("tts".equals(type)) {
                 String sessionId = jsonMessage.optString("session_id");
                 switch (state) {
                     case "start":
-                        // 只重置显示，不清除文本
                         messageHandler.reset();
                         audioExecutor.execute(this::initAudioTrack);
                         break;
@@ -410,20 +401,12 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
                     case "sentence_start":
                         if (jsonMessage.has("text")) {
                             String text = jsonMessage.getString("text");
-                            // 直接在UI线程更新，跳过所有延迟和队列
                             runOnUiThread(() -> {
                                 try {
-                                    // 直接更新UI，不经过MessageHandler的队列
                                     String[] parts = messageHandler.extractEmojiAndText(text);
-                                    if (!parts[0].isEmpty()) {
-                                        emojiText.setText(parts[0]);
-                                        emojiText.setVisibility(View.VISIBLE);
-                                    }
-                                    if (!parts[1].isEmpty()) {
-                                        messageText.setText(parts[1]);
-                                        messageText.setVisibility(View.VISIBLE);
-                                    }
-                                    Log.d("XiaoZhi", "直接更新UI: " + text + " 时间: " + System.nanoTime());
+                                    updateEmojiView(parts[0]);
+                                    updateTextView(parts[1]);
+                                    Log.d("XiaoZhi", "更新UI: " + text + " 时间: " + System.nanoTime());
                                 } catch (Exception e) {
                                     Log.e("XiaoZhi", "更新显示失败", e);
                                 }
@@ -432,7 +415,6 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
                         break;
                         
                     case "stop":
-                        // 不清除文本，只停止音频
                         handleTTSStop();
                         break;
                 }
@@ -577,5 +559,27 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
         }
         executorService.shutdown();
         audioExecutor.shutdown();
+    }
+
+    // 移到MainActivity类中的方法
+    private void updateEmojiView(String emoji) {
+        if (emoji.isEmpty()) {
+            emojiText.setVisibility(View.GONE);
+        } else {
+            emojiText.setText(emoji);
+            emojiText.setVisibility(View.VISIBLE);
+        }
+    }
+    
+    private void updateTextView(String text) {
+        View messageCard = findViewById(R.id.messageCard);
+        if (text.isEmpty()) {
+            messageCard.setVisibility(View.GONE);
+            messageText.setVisibility(View.GONE);
+        } else {
+            messageCard.setVisibility(View.VISIBLE);
+            messageText.setVisibility(View.VISIBLE);
+            messageText.setText(text);
+        }
     }
 } 

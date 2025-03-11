@@ -31,7 +31,7 @@
 
         <activity
             android:name="com.lhht.xiaozhi.activities.VoiceCallActivity"
-            android:theme="@style/Theme.XiaoZhi.VoiceCall"
+            android:theme="@style/Theme.Xiaozhi.Call"
             android:screenOrientation="portrait"
             android:exported="false" />
 

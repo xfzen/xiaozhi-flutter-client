@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 基础渐变背景 -->
+    <item>
+        <shape>
+            <gradient
+                android:type="linear"
+                android:angle="315"
+                android:startColor="#FF1A237E"
+                android:centerColor="#FF3949AB"
+                android:endColor="#FF5C6BC0" />
+        </shape>
+    </item>
+
+    <!-- 叠加渐变层，增加深度 -->
+    <item>
+        <shape>
+            <gradient
+                android:type="radial"
+                android:gradientRadius="100%p"
+                android:startColor="#335C6BC0"
+                android:centerColor="#33303F9F"
+                android:endColor="#00000000"
+                android:centerX="0.7"
+                android:centerY="0.3" />
+        </shape>
+    </item>
+
+    <!-- 顶部光晕效果 -->
+    <item>
+        <shape>
+            <gradient
+                android:type="radial"
+                android:gradientRadius="50%p"
+                android:startColor="#33E8EAF6"
+                android:centerColor="#11C5CAE9"
+                android:endColor="#00000000"
+                android:centerX="0.2"
+                android:centerY="0.2" />
+        </shape>
+    </item>
+</layer-list> 

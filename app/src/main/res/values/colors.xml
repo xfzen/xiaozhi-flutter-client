@@ -8,7 +8,25 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="wave_color">#4CAF50</color>
-    <color name="primary">#4CAF50</color>
     <color name="primary_dark">#388E3C</color>
     <color name="accent">#8BC34A</color>
+
+    <!-- 新增主题颜色 -->
+    <color name="background">#F8F9FA</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="message_background">#F0F2F5</color>
+    <color name="input_background">#FFFFFF</color>
+    
+    <!-- 文字颜色 -->
+    <color name="text_primary">#1A1A1A</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_hint">#999999</color>
+    
+    <!-- 图标颜色 -->
+    <color name="icon_tint">#666666</color>
+    
+    <!-- 主题色 -->
+    <color name="primary">#2B5AFF</color>
+    <color name="primary_variant">#1E3FBF</color>
+    <color name="secondary">#00C2FF</color>
 </resources>

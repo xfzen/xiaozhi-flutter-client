@@ -1,28 +1,32 @@
 package com.lhht.xiaozhi.activities;
 
+import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.lhht.xiaozhi.R;
 import com.lhht.xiaozhi.settings.SettingsManager;
-import com.lhht.xiaozhi.views.WaveformView;
+import com.lhht.xiaozhi.views.RippleWaveView;
 import com.lhht.xiaozhi.websocket.WebSocketManager;
 import vip.inode.demo.opusaudiodemo.utils.OpusUtils;
 
 import org.json.JSONObject;
+import java.lang.reflect.Field;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -38,8 +42,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
     private TextView recognizedText;
     private TextView callStatusText;
     private TextView emojiText;
-    private WaveformView aiWaveformView;
-    private WaveformView userWaveformView;
+    private RippleWaveView rippleView;
     private ImageButton muteButton;
     private ImageButton hangupButton;
     private ImageButton speakerButton;
@@ -66,11 +69,36 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         super.onCreate(savedInstanceState);
         
         // 设置沉浸式状态栏和导航栏
-        getWindow().getDecorView().setSystemUiVisibility(
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-        );
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        
+        // 设置沉浸式标志
+        View decorView = getWindow().getDecorView();
+        int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+        decorView.setSystemUiVisibility(flags);
+        
+        // 适配魅族手机
+        try {
+            String brand = Build.BRAND.toLowerCase();
+            if (brand.contains("meizu")) {
+                WindowManager.LayoutParams lp = getWindow().getAttributes();
+                Field darkFlag = WindowManager.LayoutParams.class.getDeclaredField("MEIZU_FLAG_DARK_STATUS_BAR_ICON");
+                Field meizuFlags = WindowManager.LayoutParams.class.getDeclaredField("meizuFlags");
+                darkFlag.setAccessible(true);
+                meizuFlags.setAccessible(true);
+                int bit = darkFlag.getInt(null);
+                int value = meizuFlags.getInt(lp);
+                value &= ~bit;
+                meizuFlags.setInt(lp, value);
+                getWindow().setAttributes(lp);
+            }
+        } catch (Exception e) {
+            Log.e("VoiceCall", "适配魅族导航栏失败", e);
+        }
         
         setContentView(R.layout.activity_voice_call);
         
@@ -80,13 +108,27 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         setupListeners();
     }
 
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            // 重新设置沉浸式标志
+            View decorView = getWindow().getDecorView();
+            int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+            decorView.setSystemUiVisibility(flags);
+        }
+    }
+
     private void initViews() {
         aiMessageText = findViewById(R.id.aiMessageText);
         recognizedText = findViewById(R.id.recognizedText);
         callStatusText = findViewById(R.id.callStatusText);
         emojiText = findViewById(R.id.emojiText);
-        aiWaveformView = findViewById(R.id.aiWaveformView);
-        userWaveformView = findViewById(R.id.userWaveformView);
+        rippleView = findViewById(R.id.rippleView);
         muteButton = findViewById(R.id.muteButton);
         hangupButton = findViewById(R.id.hangupButton);
         speakerButton = findViewById(R.id.speakerButton);
@@ -147,6 +189,13 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
                 .build();
+
+            // 使用媒体音频模式，同时保持回音消除
+            AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+            audioManager.setMode(AudioManager.MODE_NORMAL);
+            audioManager.setSpeakerphoneOn(true);
+            isSpeakerOn = true;
+            speakerButton.setImageResource(R.drawable.ic_volume_up);
         } catch (Exception e) {
             Log.e("VoiceCall", "创建AudioTrack失败", e);
         }
@@ -192,13 +241,16 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
 
     private void startRecording() {
         if (audioRecord == null) {
-            audioRecord = new AudioRecord(
-                MediaRecorder.AudioSource.MIC,
-                SAMPLE_RATE,
-                CHANNEL_CONFIG,
-                AUDIO_FORMAT,
-                BUFFER_SIZE
-            );
+            // 配置音频源为通信模式，启用回音消除
+            audioRecord = new AudioRecord.Builder()
+                .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+                .setAudioFormat(new AudioFormat.Builder()
+                    .setEncoding(AUDIO_FORMAT)
+                    .setSampleRate(SAMPLE_RATE)
+                    .setChannelMask(CHANNEL_CONFIG)
+                    .build())
+                .setBufferSizeInBytes(BUFFER_SIZE)
+                .build();
         }
 
         executorService.execute(() -> {
@@ -256,6 +308,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         speakerButton.setImageResource(isSpeakerOn ? R.drawable.ic_volume_up : R.drawable.ic_volume_off);
         
         AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        audioManager.setMode(AudioManager.MODE_NORMAL);
         audioManager.setSpeakerphoneOn(isSpeakerOn);
     }
 
@@ -312,22 +365,33 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
     }
 
     private void updateUserWaveform(byte[] buffer) {
-        if (userWaveformView != null) {
-            float[] amplitudes = new float[buffer.length / 2];
-            for (int i = 0; i < amplitudes.length; i++) {
-                short sample = (short) ((buffer[i * 2] & 0xFF) | (buffer[i * 2 + 1] << 8));
-                amplitudes[i] = sample / 32768f;
+        if (rippleView != null) {
+            float maxAmplitude = 0;
+            for (int i = 0; i < buffer.length; i += 2) {
+                short sample = (short) ((buffer[i] & 0xFF) | (buffer[i + 1] << 8));
+                maxAmplitude = Math.max(maxAmplitude, Math.abs(sample / 32768f));
             }
-            runOnUiThread(() -> userWaveformView.setAmplitudes(amplitudes));
+            rippleView.setAmplitude(maxAmplitude);
         }
     }
 
     public void updateAiWaveform(float[] amplitudes) {
-        runOnUiThread(() -> {
-            if (aiWaveformView != null) {
-                aiWaveformView.setAmplitudes(amplitudes);
-            }
-        });
+        if (amplitudes != null && amplitudes.length > 0) {
+            final float maxAmplitude = calculateMaxAmplitude(amplitudes);
+            runOnUiThread(() -> {
+                if (rippleView != null) {
+                    rippleView.setAmplitude(maxAmplitude);
+                }
+            });
+        }
+    }
+
+    private float calculateMaxAmplitude(float[] amplitudes) {
+        float maxAmplitude = 0;
+        for (float amplitude : amplitudes) {
+            maxAmplitude = Math.max(maxAmplitude, Math.abs(amplitude));
+        }
+        return maxAmplitude;
     }
 
     @Override
