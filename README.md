@@ -60,4 +60,4 @@ git clone https://github.com/TOM88812/xiaozhi-android-client.git
 ## 开发环境
 
 - Android Studio
-- JDK 11
+- JDK 17
