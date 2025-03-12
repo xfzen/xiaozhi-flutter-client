@@ -61,3 +61,7 @@ git clone https://github.com/TOM88812/xiaozhi-android-client.git
 
 - Android Studio
 - JDK 17
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=TOM88812/xiaozhi-android-client&type=Date)](https://star-history.com/#TOM88812/xiaozhi-android-client&Date)
