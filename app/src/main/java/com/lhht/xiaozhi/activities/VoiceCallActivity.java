@@ -28,6 +28,7 @@ import vip.inode.demo.opusaudiodemo.utils.OpusUtils;
 import com.skydoves.colorpickerview.ColorPickerDialog;
 import com.skydoves.colorpickerview.ColorEnvelope;
 import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener;
+import com.lhht.xiaozhi.utils.DeviceUtils;
 
 import org.json.JSONObject;
 import java.lang.reflect.Field;
@@ -205,7 +206,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
 
     private void initWebSocket() {
         // 从MainActivity获取WebSocket配置
-        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        String deviceId = DeviceUtils.getMacFromAndroidId(this);
         SettingsManager settingsManager = new SettingsManager(this);
         String wsUrl = settingsManager.getWsUrl();
         String token = settingsManager.getToken();

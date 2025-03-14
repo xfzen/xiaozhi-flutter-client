@@ -34,6 +34,7 @@ import com.lhht.xiaozhi.settings.SettingsManager;
 import com.lhht.xiaozhi.views.WaveformView;
 import com.lhht.xiaozhi.websocket.WebSocketManager;
 import vip.inode.demo.opusaudiodemo.utils.OpusUtils;
+import com.lhht.xiaozhi.utils.DeviceUtils;
 
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -200,8 +201,8 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
 
         // 初始化
         settingsManager = new SettingsManager(this);
-        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-        Log.i("MainActivity", "设备ID: " + deviceId);
+        String deviceId = DeviceUtils.getMacFromAndroidId(this);
+        Log.i("MainActivity", "设备MAC: " + deviceId);
         webSocketManager = new WebSocketManager(deviceId);
         webSocketManager.setListener(this);
         executorService = Executors.newSingleThreadExecutor();

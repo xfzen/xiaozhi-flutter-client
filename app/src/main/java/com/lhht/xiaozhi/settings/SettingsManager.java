@@ -26,6 +26,24 @@ public class SettingsManager {
                 .apply();
     }
 
+    public void saveWsUrl(String wsUrl) {
+        preferences.edit()
+                .putString(KEY_WS_URL, wsUrl)
+                .apply();
+    }
+
+    public void saveToken(String token) {
+        preferences.edit()
+                .putString(KEY_TOKEN, token)
+                .apply();
+    }
+
+    public void setTokenEnabled(boolean enabled) {
+        preferences.edit()
+                .putBoolean(KEY_ENABLE_TOKEN, enabled)
+                .apply();
+    }
+
     public void saveWsUrls(Set<String> urls) {
         preferences.edit()
                 .putStringSet(KEY_WS_URLS, urls)
@@ -49,9 +67,9 @@ public class SettingsManager {
     }
 
     public void saveBackgroundColor(int color) {
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putInt(PREF_BACKGROUND_COLOR, color);
-        editor.apply();
+        preferences.edit()
+                .putInt(PREF_BACKGROUND_COLOR, color)
+                .apply();
     }
 
     public int getBackgroundColor(int defaultColor) {
