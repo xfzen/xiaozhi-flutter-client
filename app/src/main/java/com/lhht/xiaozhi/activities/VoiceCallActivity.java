@@ -249,7 +249,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
 
             audioTrack = new AudioTrack.Builder()
                 .setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build())
                 .setAudioFormat(new AudioFormat.Builder()
@@ -790,4 +790,4 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         audioManager.setMode(AudioManager.MODE_NORMAL);
         audioManager.setSpeakerphoneOn(false);
     }
-} 
+}
