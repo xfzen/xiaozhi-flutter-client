@@ -52,6 +52,9 @@ git clone https://github.com/TOM88812/xiaozhi-android-client.git
    - 可选择是否启用Token认证
    - 在设置页面配置Token
 
+3. 自定义MAC
+   - Android ID生成的MAC，或者自定义MAC
+   - 在设置页面配置MAC
 ## 技术栈
 
 - WebSocket: Java-WebSocket 1.5.4
