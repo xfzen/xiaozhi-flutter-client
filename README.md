@@ -62,6 +62,11 @@ git clone https://github.com/TOM88812/xiaozhi-android-client.git
 - Android Studio
 - JDK 17
 
+## 已知问题
+
+- 接收到end后，还会有tts音频数据传输，导致麦克风收音提前启动，监听到AI回复的内容，导致自言自语。
+目前还是会监听ai回复的最后一句话，请你最好在ai说话的时候点击闭麦。
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=TOM88812/xiaozhi-android-client&type=Date)](https://star-history.com/#TOM88812/xiaozhi-android-client&Date)
