@@ -251,6 +251,13 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
         } catch (Exception e) {
             Log.e("MainActivity", "创建AudioTrack失败", e);
         }
+        
+        // 自动连接服务器
+        String wsUrl = settingsManager.getWsUrl();
+        if (wsUrl != null && !wsUrl.isEmpty()) {
+            Log.i("MainActivity", "正在自动连接服务器...");
+            toggleConnection();
+        }
 
         // 初始化 Opus 编解码器
         opusUtils = OpusUtils.getInstance();
