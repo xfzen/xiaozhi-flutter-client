@@ -42,6 +42,9 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
     private static final int PLAY_BUFFER_SIZE = 65536;
     private static final int OPUS_FRAME_SIZE = 960;
     private static final int OPUS_FRAME_DURATION = 60; // 60ms per frame
+    private static final long UI_UPDATE_TIMEOUT = 1500;  // 1.5秒无声音就更新UI
+    private static final long MIC_ENABLE_DELAY = 1000;   // UI更新1秒后开启麦克风
+    private static final long CHECK_INTERVAL = 50;       // 检测频率提高到50ms
 
     private TextView aiMessageText;
     private TextView recognizedText;
@@ -78,6 +81,10 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
     private byte[] encodedBuffer;
     private boolean hasStartedCall = false;
     private String sessionId = "";  // 添加session_id字段
+    private long lastPlaybackPosition = 0;
+    private int samePositionCount = 0;
+    private long lastAudioDataTime = 0;  // 新增：记录最后一次收到音频数据的时间
+    private boolean isCheckingPlaybackStatus = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,8 +123,9 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
             if (resourceId > 0) {
                 navigationBarHeight = getResources().getDimensionPixelSize(resourceId);
             }
-            ((ViewGroup.MarginLayoutParams) controlButtons.getLayoutParams()).bottomMargin = navigationBarHeight + 48;
-            controlButtons.requestLayout();
+            ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) controlButtons.getLayoutParams();
+            params.bottomMargin = navigationBarHeight + 48;
+            controlButtons.setLayoutParams(params);
         }
         
         initViews();
@@ -262,9 +270,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                 .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
                 .build();
 
-            // 立即开始播放
             audioTrack.play();
-            isPlaying = true;
         } catch (Exception e) {
             Log.e("VoiceCall", "创建AudioTrack失败", e);
         }
@@ -338,9 +344,10 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                 audioRecord.startRecording();
                 Log.d("VoiceCall", "开始录音");
                 
-                while (isRecording && !isDestroyed) {
-                    if (isMuted) {
-                        Thread.sleep(10);
+                while (!isDestroyed) {
+                    if (!isRecording || isMuted) {
+                        // 如果不在录音状态或静音，暂停一下
+                        Thread.sleep(100);
                         continue;
                     }
                     
@@ -357,14 +364,6 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                 }
             } catch (Exception e) {
                 Log.e("VoiceCall", "录音失败", e);
-            } finally {
-                if (audioRecord != null) {
-                    try {
-                        audioRecord.stop();
-                    } catch (Exception e) {
-                        Log.e("VoiceCall", "停止录音失败", e);
-                    }
-                }
             }
         });
     }
@@ -462,6 +461,8 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                     isPlaying = false;
                     // 清空波形显示
                     updateAiWaveform(new float[0]);
+                    // 重新初始化AudioTrack
+                    initAudioTrack();
                 }
             } catch (Exception e) {
                 Log.e("VoiceCall", "停止音频播放失败", e);
@@ -606,16 +607,9 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         try {
             String state = message.getString("state");
             switch (state) {
-                case "start":
-                    // AI开始说话，确保之前的音频已停止
-                    stopCurrentAudio();
-                    updateCallStatus("AI正在说话...");
-                    break;
-                    
                 case "sentence_start":
-                    // 显示AI说的话
-                    String text = message.getString("text");
                     // 分离emoji和文本
+                    String text = message.getString("text");
                     String[] parts = extractEmojiAndText(text);
                     String emoji = parts[0];
                     String cleanText = parts[1];
@@ -629,19 +623,11 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                     } else {
                         hideEmoji();
                     }
-                    updateCallStatus("AI正在说话...");
-                    break;
-                    
-                case "end":
-                    // AI说话结束
-                    updateCallStatus("正在通话中...");
-                    hideEmoji();
                     break;
                     
                 case "error":
                     String error = message.optString("error", "未知错误");
-                    updateCallStatus("TTS错误: " + error);
-                    hideEmoji();
+                    Log.e("VoiceCall", "TTS错误: " + error);
                     break;
             }
         } catch (Exception e) {
@@ -701,11 +687,6 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                     initAudioTrack();
                 }
 
-                if (!isPlaying) {
-                    audioTrack.play();
-                    isPlaying = true;
-                }
-
                 // 解码并播放音频数据
                 int decodedSamples = opusUtils.decode(decoderHandle, data, decodedBuffer);
                 if (decodedSamples > 0) {
@@ -714,6 +695,16 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                         short sample = decodedBuffer[i];
                         pcmData[i * 2] = (byte) (sample & 0xff);
                         pcmData[i * 2 + 1] = (byte) ((sample >> 8) & 0xff);
+                    }
+                    
+                    // 更新最后一次收到音频数据的时间
+                    lastAudioDataTime = System.currentTimeMillis();
+                    
+                    // 如果之前不是AI说话状态，则立即切换状态并关闭麦克风
+                    if (!isPlaying) {
+                        isPlaying = true;
+                        isRecording = false;  // 立即关闭麦克风
+                        updateCallStatus("AI正在说话...");
                     }
                     
                     int written = audioTrack.write(pcmData, 0, pcmData.length, AudioTrack.WRITE_BLOCKING);
@@ -727,11 +718,52 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                         amplitudes[i] = decodedBuffer[i] / 32768f;
                     }
                     updateAiWaveform(amplitudes);
+
+                    // 确保状态检查在运行
+                    if (!isCheckingPlaybackStatus) {
+                        startPlaybackStatusCheck();
+                    }
                 }
             } catch (Exception e) {
                 Log.e("VoiceCall", "处理音频数据失败", e);
             }
         });
+    }
+
+    private void startPlaybackStatusCheck() {
+        isCheckingPlaybackStatus = true;
+        checkPlaybackStatus();
+    }
+
+    private void checkPlaybackStatus() {
+        if (audioTrack != null && isPlaying) {
+            long currentTime = System.currentTimeMillis();
+            long timeSinceLastAudio = currentTime - lastAudioDataTime;
+            
+            // 如果超过1.5秒没有收到新的音频数据，更新UI
+            if (timeSinceLastAudio > UI_UPDATE_TIMEOUT) {
+                isPlaying = false;
+                updateCallStatus("正在通话中...");
+                hideEmoji();
+                Log.d("VoiceCall", "AI说话结束，更新UI状态");
+                
+                // 延迟1秒后开启麦克风
+                mainHandler.postDelayed(() -> {
+                    if (!isPlaying) {  // 再次检查是否还是非播放状态
+                        isRecording = true;
+                        Log.d("VoiceCall", "延迟开启麦克风");
+                    }
+                }, MIC_ENABLE_DELAY);
+                
+                isCheckingPlaybackStatus = false;
+                return;
+            }
+            
+            // 继续检查，提高检查频率
+            mainHandler.postDelayed(() -> checkPlaybackStatus(), CHECK_INTERVAL);
+        } else {
+            isCheckingPlaybackStatus = false;
+        }
     }
 
     private void showColorPicker() {
@@ -789,5 +821,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         AudioManager audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         audioManager.setMode(AudioManager.MODE_NORMAL);
         audioManager.setSpeakerphoneOn(false);
+
+        isCheckingPlaybackStatus = false;
     }
 }
