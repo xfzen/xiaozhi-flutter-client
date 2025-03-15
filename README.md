@@ -69,8 +69,7 @@ git clone https://github.com/TOM88812/xiaozhi-android-client.git
 
 ## 已知问题
 
-- 接收到end后，还会有tts音频数据传输，导致麦克风收音提前启动，监听到AI回复的内容，导致自言自语。
-目前还是会监听ai回复的最后一句话，请你最好在ai说话的时候点击闭麦。
+- 目前对话基于音频输出活动，有活动时则闭麦，没有活动等待1s开启麦克风。伪回音消除
 
 ## Star History
 
