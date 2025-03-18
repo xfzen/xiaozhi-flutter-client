@@ -9,7 +9,10 @@
 [查看演示视频](https://m.bilibili.com/video/BV19QPHeHEJm?buvid=XU9C15B983E5B3201C25FDE381B1F1C4C33D5&from_spmid=dt.space-dt.video.0&is_story_h5=false&mid=5zOL0pVwHX2%2BpSNDC91few%3D%3D&p=1&plat_id=114&share_from=ugc&share_medium=android&share_plat=android&share_session_id=8f4e8fb2-fbc5-41ad-b488-fdbb2423aed4&share_source=WEIXIN&share_tag=s_i&spmid=united.player-video-detail.0.0&timestamp=1740629989&unique_k=CR9irtn&up_id=1145920831)
 
 ## 预告：
-计划flutter版本打通iOS Android
+- 计划flutter版本打通iOS Android
+- 实现添加Dify与小智服务
+- 多个小智server添加
+
 ![mmexport1742269160352.png](https://github.com/user-attachments/assets/468e8cd7-123d-4731-bd46-8f38bb7463b4)
 
 
