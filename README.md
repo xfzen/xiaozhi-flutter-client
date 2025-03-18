@@ -12,6 +12,7 @@
 - 计划flutter版本打通iOS Android
 - 实现添加Dify与小智服务
 - 多个小智server添加
+- 拟物化简洁UI
 
 ![mmexport1742269160352.png](https://github.com/user-attachments/assets/468e8cd7-123d-4731-bd46-8f38bb7463b4)
 
