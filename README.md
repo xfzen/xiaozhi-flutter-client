@@ -13,7 +13,7 @@
 
 > IOS端演示视频
 
-[![Bilibili Video Cover](https://i1.hdslb.com/bfs/archive/64b910748020da778e9a8c9f08dbb8f5173066bc.jpg@308w_174h)](https://www.bilibili.com/video/BV1fgXvYqE61)
+[![Bilibili Video Cover](https://i1.hdslb.com/bfs/archive/64b910748020da778e9a8c9f08dbb8f5173066bc.jpg@308w_174h)](https://www.bilibili.com/video/BV1fgXvYqE61){:target="_blank"}
 
 ## 预告：
 - 计划flutter版本打通iOS Android
