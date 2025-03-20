@@ -4,15 +4,20 @@
 > (暂停更新单安卓端)现在全力输出计划flutter版本，打通IOS、Android、web端（pc端的可以自行调整，也能打包）。
 > 请同志们动动小手，点点小星星，予以鼓励。目前只是伪修复回音，如果有大神PR，欢迎指教。
 
-<p align="center">
-  <img src="1740303422139.jpg" alt="小智AI助手界面预览" width="150" height="220"/>
-</p>
-
-> IOS端演示视频
-
-[![Bilibili Video Cover](https://i1.hdslb.com/bfs/archive/64b910748020da778e9a8c9f08dbb8f5173066bc.jpg@308w_174h)](https://www.bilibili.com/video/BV1fgXvYqE61)
-
-*点击封面图观看视频*
+<table>
+  <tr>
+    <td align="center">
+      <img src="1740303422139.jpg" alt="小智AI助手界面预览" width="180" height="300"/>
+      <br>
+      <small>IOS端演示图片</small>
+    </td>
+    <td align="center">
+      [![Bilibili Video Cover](https://i1.hdslb.com/bfs/archive/64b910748020da778e9a8c9f08dbb8f5173066bc.jpg@308w_174h)](https://www.bilibili.com/video/BV1fgXvYqE61)
+      <br>
+      <small>点击封面图观看视频</small>
+    </td>
+  </tr>
+</table>
 
 ## 预告：
 - 计划flutter版本打通iOS Android
