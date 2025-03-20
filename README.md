@@ -6,15 +6,29 @@
 
 <table>
   <tr>
-    <td align="center">
-      <img src="1740303422139.jpg" alt="小智AI助手界面预览" width="180" height="300"/>
-      <br>
-      <small>IOS端演示图片</small>
+    <!-- 左侧单元格 -->
+    <td align="center" valign="middle" height="500">
+      <table>
+        <tr>
+          <td align="center">
+            <img src="1740303422139.jpg" alt="小智AI助手界面预览" width="220" height="430"/>
+          </td>
+        </tr>
+        <tr>
+          <td align="center">
+            <small>老版本安卓端演示图片</small>
+          </td>
+        </tr>
+      </table>
     </td>
-    <td align="center">
-      [![Bilibili Video Cover](https://i1.hdslb.com/bfs/archive/64b910748020da778e9a8c9f08dbb8f5173066bc.jpg@308w_174h)](https://www.bilibili.com/video/BV1fgXvYqE61)
+    <td align="center" valign="bottom" height="500">
+      <div style="text-align: center;">
+        <a href="https://www.bilibili.com/video/BV1fgXvYqE61" target="_blank">
+          <img src="https://i1.hdslb.com/bfs/archive/64b910748020da778e9a8c9f08dbb8f5173066bc.jpg@308w_174h" alt="Bilibili Video Cover" width="308" height="174"/>
+        </a>
+      </div>
       <br>
-      <small>点击封面图观看视频</small>
+      <small>新版IOS、安卓端（可以自行打包WEB、PC版本）-点击跳转</small>
     </td>
   </tr>
 </table>
