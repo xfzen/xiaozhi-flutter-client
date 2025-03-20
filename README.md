@@ -4,6 +4,12 @@
 > (暂停更新单安卓端)现在全力输出计划flutter版本，打通IOS、Android、web端（pc端的可以自行调整，也能打包）。
 > 请同志们动动小手，点点小星星，予以鼓励。目前只是伪修复回音，如果有大神PR，欢迎指教。
 
+## 预告：
+- 计划flutter版本打通iOS Android
+- 实现添加Dify与小智服务
+- 多个小智server添加
+- 拟物化简洁UI
+
 <table>
   <tr>
     <!-- 左侧单元格 -->
@@ -22,25 +28,23 @@
       </table>
     </td>
     <td align="center" valign="bottom" height="500">
-      <div style="text-align: center;">
-        <a href="https://www.bilibili.com/video/BV1fgXvYqE61" target="_blank">
-          <img src="https://i1.hdslb.com/bfs/archive/64b910748020da778e9a8c9f08dbb8f5173066bc.jpg@308w_174h" alt="Bilibili Video Cover" width="308" height="174"/>
-        </a>
-      </div>
-      <br>
-      <small>新版IOS、安卓端（可以自行打包WEB、PC版本）-点击跳转</small>
+      <table>
+        <tr>
+          <td align="center">
+            <a href="https://www.bilibili.com/video/BV1fgXvYqE61" target="_blank">
+              <img src="https://github.com/user-attachments/assets/468e8cd7-123d-4731-bd46-8f38bb7463b4" alt="新版"  width="250" height="430"/>
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td align="center">
+            <small>新版IOS、安卓端（可以自行打包WEB、PC版本）-点击跳转</small>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 </table>
-
-## 预告：
-- 计划flutter版本打通iOS Android
-- 实现添加Dify与小智服务
-- 多个小智server添加
-- 拟物化简洁UI
-
-![mmexport1742269160352.png](https://github.com/user-attachments/assets/468e8cd7-123d-4731-bd46-8f38bb7463b4)
-
 
 ## 功能特点
 
