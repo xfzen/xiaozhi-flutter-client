@@ -5,10 +5,8 @@
 > 请同志们动动小手，点点小星星，予以鼓励。目前只是伪修复回音，如果有大神PR，欢迎指教。
 
 <p align="center">
-  <img src="1740303422139.jpg" alt="小智AI助手界面预览" width="300"/>
+  <img src="1740303422139.jpg" alt="小智AI助手界面预览" width="150" height="220"/>
 </p>
-
-[查看演示视频](https://m.bilibili.com/video/BV19QPHeHEJm?buvid=XU9C15B983E5B3201C25FDE381B1F1C4C33D5&from_spmid=dt.space-dt.video.0&is_story_h5=false&mid=5zOL0pVwHX2%2BpSNDC91few%3D%3D&p=1&plat_id=114&share_from=ugc&share_medium=android&share_plat=android&share_session_id=8f4e8fb2-fbc5-41ad-b488-fdbb2423aed4&share_source=WEIXIN&share_tag=s_i&spmid=united.player-video-detail.0.0&timestamp=1740629989&unique_k=CR9irtn&up_id=1145920831)
 
 > IOS端演示视频
 
