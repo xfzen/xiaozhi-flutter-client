@@ -2,13 +2,14 @@ package com.lhht.xiaozhi.websocket;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.util.Log;
+
+import com.lhht.xiaozhi.models.websokcet.send.WebSocketSendMsgFactory;
+import com.lhht.xiaozhi.models.websokcet.send.core.WebSocketSendMsg;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -182,20 +183,7 @@ public class WebSocketManager {
 
     private void sendHelloMessage() {
         try {
-            JSONObject hello = new JSONObject();
-            hello.put("type", "hello");
-            hello.put("version", 3);
-            hello.put("transport", "websocket");
-            
-            JSONObject audioParams = new JSONObject();
-            audioParams.put("format", "opus");
-            audioParams.put("sample_rate", 16000);
-            audioParams.put("channels", 1);
-            audioParams.put("frame_duration", 60);
-            
-            hello.put("audio_params", audioParams);
-            
-            sendMessage(hello.toString());
+            sendMessage(WebSocketSendMsgFactory.getInstance().createHelloMsg());
         } catch (JSONException e) {
             Log.e(TAG, "Error creating hello message", e);
         }
@@ -211,9 +199,9 @@ public class WebSocketManager {
         return client != null && client.isOpen();
     }
 
-    public void sendMessage(String message) {
+    public void sendMessage(WebSocketSendMsg message) {
         if (isConnected()) {
-            client.send(message);
+            client.send(message.toJsonString());
         }
     }
 
