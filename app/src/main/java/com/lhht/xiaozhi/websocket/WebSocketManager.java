@@ -57,7 +57,7 @@ public class WebSocketManager {
         
         try {
             // 如果已经连接，先断开
-            if (client != null && client.isOpen()) {
+            if (isConnected()) {
                 client.close();
             }
 
@@ -202,7 +202,7 @@ public class WebSocketManager {
     }
 
     public void disconnect() {
-        if (client != null && client.isOpen()) {
+        if (isConnected()) {
             client.close();
         }
     }
@@ -212,13 +212,13 @@ public class WebSocketManager {
     }
 
     public void sendMessage(String message) {
-        if (client != null && client.isOpen()) {
+        if (isConnected()) {
             client.send(message);
         }
     }
 
     public void sendBinaryMessage(byte[] data) {
-        if (client != null && client.isOpen()) {
+        if (isConnected()) {
             client.send(data);
         }
     }
