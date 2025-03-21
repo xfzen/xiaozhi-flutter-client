@@ -502,19 +502,23 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                 short sample = (short) ((buffer[i] & 0xFF) | (buffer[i + 1] << 8));
                 maxAmplitude = Math.max(maxAmplitude, Math.abs(sample / 32768f));
             }
-            rippleView.setAmplitude(maxAmplitude);
+            setAmplitudeOfRippleView(maxAmplitude);
         }
     }
 
     public void updateAiWaveform(float[] amplitudes) {
         if (amplitudes != null && amplitudes.length > 0) {
             final float maxAmplitude = calculateMaxAmplitude(amplitudes);
-            runOnUiThread(() -> {
-                if (rippleView != null) {
-                    rippleView.setAmplitude(maxAmplitude);
-                }
-            });
+            setAmplitudeOfRippleView(maxAmplitude);
         }
+    }
+
+    private void setAmplitudeOfRippleView(float maxAmplitude){
+        runOnUiThread(() -> {
+            if (rippleView != null) {
+                rippleView.setAmplitude(maxAmplitude);
+            }
+        });
     }
 
     private float calculateMaxAmplitude(float[] amplitudes) {
