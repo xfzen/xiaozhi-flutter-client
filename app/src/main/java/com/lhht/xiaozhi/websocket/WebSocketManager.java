@@ -2,13 +2,14 @@ package com.lhht.xiaozhi.websocket;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.util.Log;
+
+import com.lhht.xiaozhi.models.websokcet.send.WebSocketSendMsgFactory;
+import com.lhht.xiaozhi.models.websokcet.send.core.WebSocketSendMsg;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -57,7 +58,7 @@ public class WebSocketManager {
         
         try {
             // 如果已经连接，先断开
-            if (client != null && client.isOpen()) {
+            if (isConnected()) {
                 client.close();
             }
 
@@ -182,27 +183,14 @@ public class WebSocketManager {
 
     private void sendHelloMessage() {
         try {
-            JSONObject hello = new JSONObject();
-            hello.put("type", "hello");
-            hello.put("version", 3);
-            hello.put("transport", "websocket");
-            
-            JSONObject audioParams = new JSONObject();
-            audioParams.put("format", "opus");
-            audioParams.put("sample_rate", 16000);
-            audioParams.put("channels", 1);
-            audioParams.put("frame_duration", 60);
-            
-            hello.put("audio_params", audioParams);
-            
-            sendMessage(hello.toString());
+            sendMessage(WebSocketSendMsgFactory.getInstance().createHelloMsg());
         } catch (JSONException e) {
             Log.e(TAG, "Error creating hello message", e);
         }
     }
 
     public void disconnect() {
-        if (client != null && client.isOpen()) {
+        if (isConnected()) {
             client.close();
         }
     }
@@ -211,14 +199,14 @@ public class WebSocketManager {
         return client != null && client.isOpen();
     }
 
-    public void sendMessage(String message) {
-        if (client != null && client.isOpen()) {
-            client.send(message);
+    public void sendMessage(WebSocketSendMsg message) {
+        if (isConnected()) {
+            client.send(message.toJsonString());
         }
     }
 
     public void sendBinaryMessage(byte[] data) {
-        if (client != null && client.isOpen()) {
+        if (isConnected()) {
             client.send(data);
         }
     }

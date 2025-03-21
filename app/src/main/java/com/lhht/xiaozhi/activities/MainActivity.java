@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.button.MaterialButton;
 import com.lhht.xiaozhi.R;
+import com.lhht.xiaozhi.models.websokcet.send.WebSocketSendMsgFactory;
 import com.lhht.xiaozhi.settings.SettingsManager;
 import com.lhht.xiaozhi.views.WaveformView;
 import com.lhht.xiaozhi.websocket.WebSocketManager;
@@ -309,12 +310,7 @@ public class MainActivity extends AppCompatActivity implements WebSocketManager.
         String message = messageInput.getText().toString().trim();
         if (!message.isEmpty() && webSocketManager.isConnected()) {
             try {
-                JSONObject jsonMessage = new JSONObject();
-                jsonMessage.put("type", "listen");
-                jsonMessage.put("state", "detect");
-                jsonMessage.put("text", message);
-                jsonMessage.put("source", "text");
-                webSocketManager.sendMessage(jsonMessage.toString());
+                webSocketManager.sendMessage(WebSocketSendMsgFactory.getInstance().createTextMsg(message));
                 messageInput.setText("");
             } catch (Exception e) {
                 e.printStackTrace();

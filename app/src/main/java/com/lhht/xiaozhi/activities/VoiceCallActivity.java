@@ -7,11 +7,9 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,17 +19,17 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.lhht.xiaozhi.R;
+import com.lhht.xiaozhi.models.websokcet.send.WebSocketSendMsgFactory;
 import com.lhht.xiaozhi.settings.SettingsManager;
 import com.lhht.xiaozhi.views.RippleWaveView;
 import com.lhht.xiaozhi.websocket.WebSocketManager;
 import vip.inode.demo.opusaudiodemo.utils.OpusUtils;
 import com.skydoves.colorpickerview.ColorPickerDialog;
-import com.skydoves.colorpickerview.ColorEnvelope;
 import com.skydoves.colorpickerview.listeners.ColorEnvelopeListener;
 import com.lhht.xiaozhi.utils.DeviceUtils;
 
 import org.json.JSONObject;
-import java.lang.reflect.Field;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -295,15 +293,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
 
         try {
             // 发送开始通话消息
-            JSONObject startMessage = new JSONObject();
-            startMessage.put("type", "start");
-            startMessage.put("mode", "auto");
-            startMessage.put("audio_params", new JSONObject()
-                .put("format", "opus")
-                .put("sample_rate", SAMPLE_RATE)
-                .put("channels", 1)
-                .put("frame_duration", 60));
-            webSocketManager.sendMessage(startMessage.toString());
+            webSocketManager.sendMessage(WebSocketSendMsgFactory.getInstance().createStartMsg(SAMPLE_RATE));
 
             // 开始录音
             isRecording = true;
@@ -439,10 +429,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
     private void interruptAiResponse() {
         if (webSocketManager != null && webSocketManager.isConnected()) {
             try {
-                JSONObject jsonMessage = new JSONObject();
-                jsonMessage.put("type", "abort");
-                jsonMessage.put("reason", "user_interrupted");
-                webSocketManager.sendMessage(jsonMessage.toString());
+                webSocketManager.sendMessage(WebSocketSendMsgFactory.getInstance().createAbortMsg());
                 updateCallStatus("已打断AI回答");
                 
                 // 停止当前音频播放
@@ -502,19 +489,23 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
                 short sample = (short) ((buffer[i] & 0xFF) | (buffer[i + 1] << 8));
                 maxAmplitude = Math.max(maxAmplitude, Math.abs(sample / 32768f));
             }
-            rippleView.setAmplitude(maxAmplitude);
+            setAmplitudeOfRippleView(maxAmplitude);
         }
     }
 
     public void updateAiWaveform(float[] amplitudes) {
         if (amplitudes != null && amplitudes.length > 0) {
             final float maxAmplitude = calculateMaxAmplitude(amplitudes);
-            runOnUiThread(() -> {
-                if (rippleView != null) {
-                    rippleView.setAmplitude(maxAmplitude);
-                }
-            });
+            setAmplitudeOfRippleView(maxAmplitude);
         }
+    }
+
+    private void setAmplitudeOfRippleView(float maxAmplitude){
+        runOnUiThread(() -> {
+            if (rippleView != null) {
+                rippleView.setAmplitude(maxAmplitude);
+            }
+        });
     }
 
     private float calculateMaxAmplitude(float[] amplitudes) {
@@ -587,12 +578,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
 
     private void sendListenMessage() {
         try {
-            JSONObject listenMessage = new JSONObject();
-            listenMessage.put("type", "listen");
-            listenMessage.put("session_id", sessionId);
-            listenMessage.put("state", "start");
-            listenMessage.put("mode", "auto");
-            webSocketManager.sendMessage(listenMessage.toString());
+            webSocketManager.sendMessage(WebSocketSendMsgFactory.getInstance().createListenMsg(sessionId));
             Log.d("VoiceCall", "发送listen消息");
 
             // 开始录音
@@ -795,9 +781,7 @@ public class VoiceCallActivity extends AppCompatActivity implements WebSocketMan
         
         if (webSocketManager != null) {
             try {
-                JSONObject endMessage = new JSONObject();
-                endMessage.put("type", "end");
-                webSocketManager.sendMessage(endMessage.toString());
+                webSocketManager.sendMessage(WebSocketSendMsgFactory.getInstance().createEndMsg());
             } catch (Exception e) {
                 Log.e("VoiceCall", "发送结束消息失败", e);
             }
