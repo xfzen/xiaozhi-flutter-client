@@ -38,7 +38,10 @@
         </tr>
         <tr>
           <td align="center">
-            <small>新版IOS、安卓端（可以自行打包WEB、PC版本)<br>-- 观看demo视频点击跳转</small>
+            <small>
+  新版IOS、安卓端（可以自行打包WEB、PC版本)<br>
+  -- <a href="https://example.com" style="color: red; text-decoration: none;">观看demo视频点击跳转</a>
+</small>
           </td>
         </tr>
       </table>
