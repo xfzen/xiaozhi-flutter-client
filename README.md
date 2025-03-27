@@ -32,13 +32,13 @@
         <tr>
           <td align="center">
             <a href="https://www.bilibili.com/video/BV1fgXvYqE61" target="_blank">
-              <img src="https://github.com/user-attachments/assets/468e8cd7-123d-4731-bd46-8f38bb7463b4" alt="新版"  width="250" height="430"/>
+              <img src="2345.jpg" alt="新版"  width="200" height="430"/>
             </a>
           </td>
         </tr>
         <tr>
           <td align="center">
-            <small>新版IOS、安卓端（可以自行打包WEB、PC版本）-点击跳转</small>
+            <small>新版IOS、安卓端（可以自行打包WEB、PC版本)<br>-- 观看demo视频点击跳转</small>
           </td>
         </tr>
       </table>
