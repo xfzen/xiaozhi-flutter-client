@@ -112,6 +112,13 @@ git clone https://github.com/TOM88812/xiaozhi-android-client.git
 
 - 目前对话基于音频输出活动，有活动时则闭麦，没有活动等待1s开启麦克风。伪回音消除
 
+## 🌟支持
+
+您的每一个start⭐或赞赏💖，都是我们不断前进的动力🛸。
+<div style="display: flex;">
+<img src="zsm.jpg" width="260" height="280" alt="赞助" style="border-radius: 12px;" />
+</div>
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=TOM88812/xiaozhi-android-client&type=Date)](https://star-history.com/#TOM88812/xiaozhi-android-client&Date)
