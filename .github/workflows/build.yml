@@ -29,9 +29,9 @@ jobs:
           echo 'android.namespace=com.lhht.flutter_pcm_player' >> /home/runner/.pub-cache/hosted/pub.dev/flutter_pcm_player-0.0.1/android/gradle.properties
         continue-on-error: true
 
-      # 使用Impeller渲染器构建APK，不需要预编译着色器
-      - name: Build APK with Impeller
-        run: flutter build apk --release --enable-impeller --tree-shake-icons
+      # 使用最简单的方式构建APK
+      - name: Build APK
+        run: flutter build apk --release
 
       - name: Rename APK with prefix
         run: |
@@ -66,9 +66,9 @@ jobs:
           cd ios
           pod install || pod install --repo-update
 
-      # 使用Impeller渲染器构建iOS，iOS上原生支持Impeller
-      - name: Build iOS with Impeller
-        run: flutter build ios --release --no-codesign --enable-impeller --tree-shake-icons
+      # 使用最简单的方式构建iOS
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
 
       - name: Create IPA
         run: |
