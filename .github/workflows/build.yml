@@ -23,15 +23,25 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+        
+      - name: Fix PCM Player namespace
+        run: |
+          echo 'android.namespace=com.lhht.flutter_pcm_player' >> /home/runner/.pub-cache/hosted/pub.dev/flutter_pcm_player-0.0.1/android/gradle.properties
+        continue-on-error: true
 
       - name: Build APK
         run: flutter build apk --release
+
+      - name: Rename APK with prefix
+        run: |
+          cd build/app/outputs/flutter-apk/
+          mv app-release.apk lhht-app-release.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: android-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/lhht-app-release.apk
           
   build-ios:
     name: Build iOS
@@ -54,22 +64,32 @@ jobs:
         run: |
           cd ios
           pod install || pod install --repo-update
+          
+      - name: Start iOS Simulator
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices | grep -m 1 'iPhone' | awk -F'[()]' '{print $2}')
+          xcrun simctl boot "$DEVICE_ID" || true
+          
+      - name: Generate SkSL Shaders for iOS
+        run: |
+          flutter run --profile --cache-sksl
+          flutter build --bundle-sksl-path flutter_01.sksl.json
 
-      - name: Build iOS (Unsigned)
-        run: flutter build ios --release --no-codesign
+      - name: Build iOS (Unsigned) with SkSL
+        run: flutter build ios --release --no-codesign --bundle-sksl-path flutter_01.sksl.json
 
       - name: Create IPA
         run: |
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/
-          zip -r ai_assistant.ipa Payload/
+          zip -r lhht-ai-assistant.ipa Payload/
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: ios-release
-          path: build/ios/iphoneos/ai_assistant.ipa
+          path: build/ios/iphoneos/lhht-ai-assistant.ipa
 
   create-release:
     name: Create GitHub Release
@@ -101,7 +121,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            android-release/app-release.apk
-            ios-release/ai_assistant.ipa
+            android-release/lhht-app-release.apk
+            ios-release/lhht-ai-assistant.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
