@@ -29,8 +29,26 @@ jobs:
           echo 'android.namespace=com.lhht.flutter_pcm_player' >> /home/runner/.pub-cache/hosted/pub.dev/flutter_pcm_player-0.0.1/android/gradle.properties
         continue-on-error: true
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Setup Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          profile: pixel
+          script: echo "Emulator started"
+        
+      - name: Generate SkSL Shaders
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          profile: pixel
+          script: |
+            flutter run --profile --cache-sksl --no-sound-null-safety
+            flutter build --bundle-sksl-path flutter_01.sksl.json
+
+      - name: Build APK with SkSL
+        run: flutter build apk --release --bundle-sksl-path flutter_01.sksl.json
 
       - name: Rename APK with prefix
         run: |
