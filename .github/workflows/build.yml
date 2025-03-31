@@ -24,10 +24,49 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
         
-      - name: Fix PCM Player namespace
+      - name: Fix PCM Player Plugin Info (使用正确的包名)
         run: |
-          echo 'android.namespace=com.lhht.flutter_pcm_player' >> /home/runner/.pub-cache/hosted/pub.dev/flutter_pcm_player-0.0.1/android/gradle.properties
-        continue-on-error: true
+          echo "Checking PCM Player Plugin:"
+          PCM_GRADLE_FILE="/home/runner/.pub-cache/hosted/pub.dev/flutter_pcm_player-0.0.1/android/build.gradle"
+          PCM_MANIFEST_FILE="/home/runner/.pub-cache/hosted/pub.dev/flutter_pcm_player-0.0.1/android/src/main/AndroidManifest.xml"
+          
+          if [ -f "$PCM_GRADLE_FILE" ]; then
+            echo "Found build.gradle:"
+            cat "$PCM_GRADLE_FILE"
+            
+            # 检查是否已有namespace，没有则添加，使用正确的包名
+            if ! grep -q "namespace" "$PCM_GRADLE_FILE"; then
+              echo "Adding namespace to build.gradle"
+              sed -i '/android {/a \\    namespace "com.lhht.flutter_pcm_player"' "$PCM_GRADLE_FILE"
+              echo "Modified build.gradle:"
+              cat "$PCM_GRADLE_FILE"
+            else
+              echo "Namespace already exists in build.gradle, updating it"
+              # 替换为正确的包名
+              sed -i 's/namespace "com.example.flutter_pcm_player"/namespace "com.lhht.flutter_pcm_player"/' "$PCM_GRADLE_FILE"
+              echo "Modified build.gradle:"
+              cat "$PCM_GRADLE_FILE"
+            fi
+          else
+            echo "Cannot find build.gradle at $PCM_GRADLE_FILE"
+          fi
+          
+          if [ -f "$PCM_MANIFEST_FILE" ]; then
+            echo "Found AndroidManifest.xml:"
+            cat "$PCM_MANIFEST_FILE"
+            # 修改AndroidManifest.xml中的包名
+            sed -i 's/package="com.example.flutter_pcm_player"/package="com.lhht.flutter_pcm_player"/' "$PCM_MANIFEST_FILE"
+            echo "Modified AndroidManifest.xml:"
+            cat "$PCM_MANIFEST_FILE"
+          else
+            echo "Cannot find AndroidManifest.xml"
+          fi
+          
+          # 备用方法：在gradle.properties中添加命名空间
+          GRADLE_PROPS="/home/runner/.pub-cache/hosted/pub.dev/flutter_pcm_player-0.0.1/android/gradle.properties"
+          echo 'android.namespace=com.lhht.flutter_pcm_player' >> "$GRADLE_PROPS"
+          echo "Added namespace to gradle.properties:"
+          cat "$GRADLE_PROPS"
 
       # 使用最简单的方式构建APK
       - name: Build APK
