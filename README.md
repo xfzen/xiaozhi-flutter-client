@@ -1,6 +1,6 @@
 # 小智AI助手 Android客户端
 
-> 还在修复一些bug，晚些发布，特此声明。目前还是老版本
+> 目前已经发布新版本，敬请体验！由于项目无人问津，可能下一步开发会慢很多。
 
 一个基于WebSocket的Android语音对话应用,支持实时语音交互和文字对话。
 基于Flutter框架开发的小智AI助手，支持多平台（iOS、Android、Web、Windows、macOS、Linux）部署，提供实时语音交互和文字对话功能。
