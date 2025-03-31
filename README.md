@@ -101,6 +101,7 @@ flutter build linux --release
 5. 如果没有证书:
 安卓无影响。
 IOS、Mac可以按照无签名的方法打包，使用第三方工具侧载。
+IOS编译完后，需要在设置-APP中打开网络权限
 
 ## 配置说明
 

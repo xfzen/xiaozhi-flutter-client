@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- 状态栏默认高度 -->
-    <dimen name="status_bar_height">48dp</dimen>
-</resources> 
