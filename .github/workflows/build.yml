@@ -71,102 +71,9 @@ jobs:
           name: ios-release
           path: build/ios/iphoneos/ai_assistant.ipa
 
-  build-macos:
-    name: Build macOS
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-          channel: 'stable'
-          cache: true
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build macOS
-        run: flutter build macos --release
-
-      - name: Create ZIP
-        run: |
-          cd build/macos/Build/Products/Release
-          zip -r ai_assistant_macos.zip ai_assistant.app
-
-      - name: Upload macOS
-        uses: actions/upload-artifact@v3
-        with:
-          name: macos-release
-          path: build/macos/Build/Products/Release/ai_assistant_macos.zip
-
-  build-windows:
-    name: Build Windows
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-          channel: 'stable'
-          cache: true
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build Windows
-        run: flutter build windows --release
-
-      - name: Create ZIP
-        run: |
-          cd build/windows/x64/runner
-          powershell Compress-Archive -Path Release/* -DestinationPath ai_assistant_windows.zip
-
-      - name: Upload Windows
-        uses: actions/upload-artifact@v3
-        with:
-          name: windows-release
-          path: build/windows/x64/runner/ai_assistant_windows.zip
-
-  build-web:
-    name: Build Web
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-          channel: 'stable'
-          cache: true
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build Web
-        run: flutter build web --release
-
-      - name: Create ZIP
-        run: |
-          cd build/web
-          zip -r ai_assistant_web.zip .
-
-      - name: Upload Web
-        uses: actions/upload-artifact@v3
-        with:
-          name: web-release
-          path: build/web/ai_assistant_web.zip
-
   create-release:
     name: Create GitHub Release
-    needs: [build-android, build-ios, build-macos, build-windows, build-web]
+    needs: [build-android, build-ios]
     runs-on: ubuntu-latest
     steps:
       - name: Download Android Artifact
@@ -180,24 +87,6 @@ jobs:
         with:
           name: ios-release
           path: ios-release
-
-      - name: Download macOS Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: macos-release
-          path: macos-release
-
-      - name: Download Windows Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: windows-release
-          path: windows-release
-
-      - name: Download Web Artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: web-release
-          path: web-release
 
       - name: Get tag name
         id: tag_name
@@ -214,8 +103,5 @@ jobs:
           files: |
             android-release/app-release.apk
             ios-release/ai_assistant.ipa
-            macos-release/ai_assistant_macos.zip
-            windows-release/ai_assistant_windows.zip
-            web-release/ai_assistant_web.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
