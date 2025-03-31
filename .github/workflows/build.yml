@@ -68,20 +68,20 @@ jobs:
           echo "Added namespace to gradle.properties:"
           cat "$GRADLE_PROPS"
 
-      # 使用最简单的方式构建APK
-      - name: Build APK
-        run: flutter build apk --release
+      # 使用debug模式构建APK，避免R8和Play Core库依赖问题
+      - name: Build APK (Debug Mode)
+        run: flutter build apk --debug
 
       - name: Rename APK with prefix
         run: |
           cd build/app/outputs/flutter-apk/
-          mv app-release.apk lhht-app-release.apk
+          mv app-debug.apk lhht-app-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-release
-          path: build/app/outputs/flutter-apk/lhht-app-release.apk
+          name: android-debug
+          path: build/app/outputs/flutter-apk/lhht-app-debug.apk
           
   build-ios:
     name: Build iOS
@@ -130,8 +130,8 @@ jobs:
       - name: Download Android Artifact
         uses: actions/download-artifact@v4
         with:
-          name: android-release
-          path: android-release
+          name: android-debug
+          path: android-debug
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v4
@@ -152,7 +152,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            android-release/lhht-app-release.apk
+            android-debug/lhht-app-debug.apk
             ios-release/lhht-ai-assistant.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
