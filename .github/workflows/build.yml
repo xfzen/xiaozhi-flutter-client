@@ -29,26 +29,9 @@ jobs:
           echo 'android.namespace=com.lhht.flutter_pcm_player' >> /home/runner/.pub-cache/hosted/pub.dev/flutter_pcm_player-0.0.1/android/gradle.properties
         continue-on-error: true
 
-      - name: Setup Android Emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          arch: x86_64
-          profile: pixel
-          script: echo "Emulator started"
-        
-      - name: Generate SkSL Shaders
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          arch: x86_64
-          profile: pixel
-          script: |
-            flutter run --profile --cache-sksl --no-sound-null-safety
-            flutter build --bundle-sksl-path flutter_01.sksl.json
-
-      - name: Build APK with SkSL
-        run: flutter build apk --release --bundle-sksl-path flutter_01.sksl.json
+      # 使用Impeller渲染器构建APK，不需要预编译着色器
+      - name: Build APK with Impeller
+        run: flutter build apk --release --enable-impeller --tree-shake-icons
 
       - name: Rename APK with prefix
         run: |
@@ -82,19 +65,10 @@ jobs:
         run: |
           cd ios
           pod install || pod install --repo-update
-          
-      - name: Start iOS Simulator
-        run: |
-          DEVICE_ID=$(xcrun simctl list devices | grep -m 1 'iPhone' | awk -F'[()]' '{print $2}')
-          xcrun simctl boot "$DEVICE_ID" || true
-          
-      - name: Generate SkSL Shaders for iOS
-        run: |
-          flutter run --profile --cache-sksl
-          flutter build --bundle-sksl-path flutter_01.sksl.json
 
-      - name: Build iOS (Unsigned) with SkSL
-        run: flutter build ios --release --no-codesign --bundle-sksl-path flutter_01.sksl.json
+      # 使用Impeller渲染器构建iOS，iOS上原生支持Impeller
+      - name: Build iOS with Impeller
+        run: flutter build ios --release --no-codesign --enable-impeller --tree-shake-icons
 
       - name: Create IPA
         run: |
