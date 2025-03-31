@@ -28,7 +28,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: android-release
           path: build/app/outputs/flutter-apk/app-release.apk
@@ -66,7 +66,7 @@ jobs:
           zip -r ai_assistant.ipa Payload/
 
       - name: Upload IPA
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ios-release
           path: build/ios/iphoneos/ai_assistant.ipa
@@ -77,13 +77,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Android Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: android-release
           path: android-release
 
       - name: Download iOS Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ios-release
           path: ios-release
