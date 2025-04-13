@@ -92,15 +92,6 @@ flutter build ios --release
 
 # Web
 flutter build web --release
-
-# Windows
-flutter build windows --release
-
-# macOS
-flutter build macos --release
-
-# Linux
-flutter build linux --release
 ```
 
 5. 如果没有证书:
