@@ -63,7 +63,6 @@
 - **iOS**: 12.0+
 - **Android**: API 21+ (Android 5.0+)
 - **Web**: 现代浏览器支持
-- **桌面平台**: Windows 10+, macOS 10.15+, Linux (支持GTK)
 
 ## 安装与构建
 
