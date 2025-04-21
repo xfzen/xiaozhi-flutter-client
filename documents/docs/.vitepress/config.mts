@@ -5,7 +5,7 @@ import { getGuideSideBarItems } from './guide'
 export default defineConfig({
   title: "ANDROID-XIAOZHI",
   description: "android-xiaozhi 是一个基于Flutter的跨平台小智客户端，支持iOS、Android、Web等多平台",
-  base: '/android-xiaozhi/',
+  base: '/xiaozhi-android-client/',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav: [
