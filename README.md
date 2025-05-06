@@ -124,7 +124,7 @@ IOS编译完后，需要在设置-APP中打开网络权限
 - [ ] 支持MCP_Client
 - [ ] 支持OpenAI接口联网搜索🔍
 
-## 服务端图形化配置工具
+## 服务端图形化部署工具
 - https://space.bilibili.com/298384872
 - https://znhblog.com/
 
