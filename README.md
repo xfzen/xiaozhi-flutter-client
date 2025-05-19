@@ -134,6 +134,7 @@ IOS编译完后，需要在设置-APP中打开网络权限
 - [x] 支持Qwen3模型开关思考模式
 - [x] 支持HTML代码预览
 - [x] live2d 多模型自由切换
+  - live2d 自由导入
 - [ ] 集成MIot 控制米家设备
 - [ ] 支持TTS
 - [ ] 支持MCP_Client
