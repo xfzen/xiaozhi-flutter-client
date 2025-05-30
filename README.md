@@ -171,6 +171,9 @@ IOS编译完后，需要在设置-APP中打开网络权限
 <img src="zsm.jpg" width="260" height="280" alt="赞助" style="border-radius: 12px;" />
 </div>
 
+# 赞助榜
+- ### ***上海沃欧文化传媒有限公司***
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=TOM88812/xiaozhi-android-client&type=Date)](https://star-history.com/#TOM88812/xiaozhi-android-client&Date)
