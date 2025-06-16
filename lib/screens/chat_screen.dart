@@ -174,6 +174,14 @@ class _ChatScreenState extends State<ChatScreen> {
       (config) => config.id == widget.conversation.configId,
     );
 
+    print('ChatScreen: 初始化小智服务');
+    print('  对话ID: ${widget.conversation.id}');
+    print('  配置ID: ${widget.conversation.configId}');
+    print('  配置名称: ${xiaozhiConfig.name}');
+    print('  WebSocket URL: ${xiaozhiConfig.websocketUrl}');
+    print('  MAC地址: ${xiaozhiConfig.macAddress}');
+    print('  Token: ${xiaozhiConfig.token}');
+
     _xiaozhiService = XiaozhiService(
       websocketUrl: xiaozhiConfig.websocketUrl,
       macAddress: xiaozhiConfig.macAddress,

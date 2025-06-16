@@ -46,12 +46,16 @@ void main() async {
         100 * 1024 * 1024; // 100 MB
   }
 
-  // 请求录音和存储权限
-  await [
-    Permission.microphone,
-    Permission.storage,
-    if (Platform.isAndroid) Permission.bluetoothConnect,
-  ].request();
+  // 请求录音和存储权限（仅在移动平台）
+  if (Platform.isAndroid || Platform.isIOS) {
+    await [
+      Permission.microphone,
+      Permission.storage,
+      if (Platform.isAndroid) Permission.bluetoothConnect,
+    ].request();
+  } else {
+    print('桌面平台不需要请求权限');
+  }
 
   // 添加中文本地化支持
   timeago.setLocaleMessages('zh', timeago.ZhMessages());

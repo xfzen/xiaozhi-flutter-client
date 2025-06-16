@@ -7,32 +7,6 @@
 一个基于WebSocket的Android语音对话应用,支持实时语音交互和文字对话。
 基于Flutter框架开发的小智AI助手，支持多平台（iOS、Android、Web、Windows、macOS、Linux）部署，提供实时语音交互和文字对话功能。
 
-<table>
-  <tr>
-    <td align="center" valign="bottom" height="500">
-      <table>
-        <tr>
-          <td align="center">
-            <a href="https://www.bilibili.com/video/BV178EqzAEFf" target="_blank">
-              <img src="1234.jpg" alt="新版"  width="200" height="430"/>
-            </a>
-          </td>
-        </tr>
-        <tr>
-          <td align="center">
-            <small>
-  新版IOS、安卓端（可以自行打包WEB、PC版本)<br>
-  <a href="https://www.bilibili.com/video/BV1fgXvYqE61" style="color: red; text-decoration: none;">观看demo视频点击跳转</a>
-</small>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-
-# 近期出现不良社区风气，倒卖贩子泛滥，同时未对此开源项目做出署名，对开源社区造成严重影响，暂停开源推送。
-
 ## 功能特点（部分功能未在社区版实现）
 
 - **跨平台支持**：使用Flutter框架，一套代码支持多平台

@@ -52,7 +52,7 @@ class AudioUtil {
 
     print('$TAG: 开始初始化录音器');
 
-    // 更积极地请求所有可能需要的权限
+    // 更积极地请求所有可能需要的权限（仅在移动平台）
     if (Platform.isAndroid) {
       print('$TAG: 请求Android所需的所有权限');
       Map<Permission, PermissionStatus> statuses =
@@ -74,13 +74,16 @@ class AudioUtil {
         print('$TAG: 麦克风权限被拒绝');
         throw Exception('需要麦克风权限');
       }
-    } else {
-      // iOS/其他平台只请求麦克风权限
+    } else if (Platform.isIOS) {
+      // iOS只请求麦克风权限
       final status = await Permission.microphone.request();
       if (status != PermissionStatus.granted) {
         print('$TAG: 麦克风权限被拒绝');
         throw Exception('需要麦克风权限');
       }
+    } else {
+      // 桌面平台跳过权限检查
+      print('$TAG: 桌面平台跳过权限检查');
     }
 
     // 检查是否可用
@@ -213,17 +216,21 @@ class AudioUtil {
     try {
       print('$TAG: 尝试启动录音');
 
-      // 确保麦克风权限已获取 - 使用不同方式检查权限
-      final status = await Permission.microphone.status;
-      print('$TAG: 麦克风权限状态: $status');
+      // 确保麦克风权限已获取（仅在移动平台） - 使用不同方式检查权限
+      if (Platform.isIOS || Platform.isAndroid) {
+        final status = await Permission.microphone.status;
+        print('$TAG: 麦克风权限状态: $status');
 
-      if (status != PermissionStatus.granted) {
-        final result = await Permission.microphone.request();
-        print('$TAG: 请求麦克风权限结果: $result');
-        if (result != PermissionStatus.granted) {
-          print('$TAG: 麦克风权限被拒绝');
-          return;
+        if (status != PermissionStatus.granted) {
+          final result = await Permission.microphone.request();
+          print('$TAG: 请求麦克风权限结果: $result');
+          if (result != PermissionStatus.granted) {
+            print('$TAG: 麦克风权限被拒绝');
+            return;
+          }
         }
+      } else {
+        print('$TAG: 桌面平台跳过权限检查');
       }
 
       // 尝试直接使用音频流

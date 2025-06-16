@@ -41,9 +41,6 @@ class XiaozhiService {
   static const String TAG = "XiaozhiService";
   static const String DEFAULT_SERVER = "wss://ws.xiaozhi.ai";
 
-  // 单例实例
-  static XiaozhiService? _instance;
-
   final String websocketUrl;
   final String macAddress;
   final String token;
@@ -59,35 +56,21 @@ class XiaozhiService {
   bool _hasStartedCall = false;
   MessageListener? _messageListener;
 
-  /// 工厂构造函数，实现单例模式
-  factory XiaozhiService({
-    required String websocketUrl,
-    required String macAddress,
-    required String token,
-    String? sessionId,
-  }) {
-    _instance ??= XiaozhiService._internal(
-      websocketUrl: websocketUrl,
-      macAddress: macAddress,
-      token: token,
-      sessionId: sessionId,
-    );
-    return _instance!;
-  }
-
-  /// 内部构造函数
-  XiaozhiService._internal({
+  /// 构造函数 - 移除单例模式，允许创建多个实例
+  XiaozhiService({
     required this.websocketUrl,
     required this.macAddress,
     required this.token,
     String? sessionId,
   }) {
     _sessionId = sessionId;
+    print('$TAG: 创建新的XiaozhiService实例');
+    print('  WebSocket URL: $websocketUrl');
+    print('  MAC地址: $macAddress');
+    print('  Token: $token');
+    print('  会话ID: $_sessionId');
     _init();
   }
-
-  /// 获取实例
-  static XiaozhiService? get instance => _instance;
 
   /// 切换到语音通话模式
   Future<void> switchToVoiceCallMode() async {
@@ -296,7 +279,7 @@ class XiaozhiService {
   /// 连接语音通话
   Future<void> connectVoiceCall() async {
     try {
-      // 简化流程，确保权限和音频准备就绪
+      // 简化流程，确保权限和音频准备就绪（仅在移动平台）
       if (Platform.isIOS || Platform.isAndroid) {
         final status = await Permission.microphone.request();
         if (status != PermissionStatus.granted) {
@@ -306,6 +289,8 @@ class XiaozhiService {
           );
           return;
         }
+      } else {
+        print('$TAG: 桌面平台跳过权限检查');
       }
 
       // 初始化音频系统
@@ -417,7 +402,7 @@ class XiaozhiService {
 
       print('$TAG: 使用会话ID开始录音: $_sessionId');
 
-      // 请求麦克风权限
+      // 请求麦克风权限（仅在移动平台）
       if (Platform.isIOS) {
         final micStatus = await Permission.microphone.status;
         if (micStatus != PermissionStatus.granted) {
@@ -433,7 +418,7 @@ class XiaozhiService {
 
         // 确保音频会话已初始化
         await AudioUtil.initRecorder();
-      } else {
+      } else if (Platform.isAndroid) {
         // Android权限请求
         final status = await Permission.microphone.request();
         if (status.isDenied) {
@@ -443,6 +428,10 @@ class XiaozhiService {
           );
           return;
         }
+      } else {
+        // 桌面平台跳过权限检查
+        print('$TAG: 桌面平台跳过权限检查');
+        await AudioUtil.initRecorder();
       }
 
       // 开始录音

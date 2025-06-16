@@ -73,6 +73,13 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     )..repeat(reverse: true);
 
     // 获取XiaozhiService实例
+    print('VoiceCallScreen: 初始化小智服务');
+    print('  对话ID: ${widget.conversation.id}');
+    print('  配置名称: ${widget.xiaozhiConfig.name}');
+    print('  WebSocket URL: ${widget.xiaozhiConfig.websocketUrl}');
+    print('  MAC地址: ${widget.xiaozhiConfig.macAddress}');
+    print('  Token: ${widget.xiaozhiConfig.token}');
+
     _xiaozhiService = XiaozhiService(
       websocketUrl: widget.xiaozhiConfig.websocketUrl,
       macAddress: widget.xiaozhiConfig.macAddress,
