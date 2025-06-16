@@ -18,6 +18,7 @@ import 'package:ai_assistant/screens/voice_call_screen.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ChatScreen extends StatefulWidget {
   final Conversation conversation;
@@ -52,6 +53,9 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+
+    // 请求必要的权限
+    _requestPermissions();
 
     // 设置状态栏为透明并使图标为黑色
     SystemChrome.setSystemUIOverlayStyle(
@@ -1658,6 +1662,31 @@ class _ChatScreenState extends State<ChatScreen> {
         _isLoading = false;
       });
       _scrollToBottom();
+    }
+  }
+
+  // 请求必要的权限
+  Future<void> _requestPermissions() async {
+    if (widget.conversation.type == ConversationType.xiaozhi) {
+      // 请求麦克风权限
+      final micStatus = await Permission.microphone.request();
+      print('麦克风权限状态: $micStatus');
+
+      // 请求本地网络权限（iOS特有）
+      if (Platform.isIOS) {
+        final bluetoothStatus = await Permission.bluetooth.request();
+        final locationStatus = await Permission.location.request();
+        print('蓝牙权限状态: $bluetoothStatus');
+        print('位置权限状态: $locationStatus');
+      }
+    }
+
+    // 如果需要相机和相册权限（用于图片上传功能）
+    if (widget.conversation.type == ConversationType.dify) {
+      final cameraStatus = await Permission.camera.request();
+      final photosStatus = await Permission.photos.request();
+      print('相机权限状态: $cameraStatus');
+      print('相册权限状态: $photosStatus');
     }
   }
 }
