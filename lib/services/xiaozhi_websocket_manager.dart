@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 // 尝试导入io.dart，但在web平台会抛出异常
@@ -77,6 +78,10 @@ class XiaozhiWebSocketManager {
     if (_channel != null) {
       await disconnect();
     }
+
+    // 取消现有的重连定时器
+    _reconnectTimer?.cancel();
+    _isReconnecting = false;
 
     try {
       // 创建WebSocket连接
@@ -187,12 +192,20 @@ class XiaozhiWebSocketManager {
       "type": "hello",
       "version": 1,
       "transport": "websocket",
-      "audio_params": {
-        "format": "opus",
-        "sample_rate": 16000,
-        "channels": 1,
-        "frame_duration": 60,
-      },
+      "audio_params":
+          Platform.isMacOS
+              ? {
+                "format": "pcm16",
+                "sample_rate": 16000,
+                "channels": 1,
+                "frame_duration": 60,
+              }
+              : {
+                "format": "opus",
+                "sample_rate": 16000,
+                "channels": 1,
+                "frame_duration": 60,
+              },
     };
 
     sendMessage(jsonEncode(hello));
@@ -277,12 +290,30 @@ class XiaozhiWebSocketManager {
     // 尝试自动重连
     if (!_isReconnecting && _serverUrl != null && _token != null) {
       _isReconnecting = true;
+      print('$TAG: 准备在 ${RECONNECT_DELAY}ms 后重连');
+
       _reconnectTimer = Timer(
-        const Duration(milliseconds: RECONNECT_DELAY),
-        () {
-          _isReconnecting = false;
-          if (_serverUrl != null && _token != null) {
-            connect(_serverUrl!, _token!);
+        Duration(milliseconds: RECONNECT_DELAY),
+        () async {
+          print('$TAG: 开始重连...');
+          try {
+            await connect(_serverUrl!, _token!);
+            if (isConnected) {
+              print('$TAG: 重连成功');
+              _isReconnecting = false;
+            } else {
+              throw Exception('连接未建立');
+            }
+          } catch (e) {
+            print('$TAG: 重连失败: $e');
+            _isReconnecting = false;
+            // 如果重连失败，再次尝试，但增加延迟
+            _reconnectTimer = Timer(
+              Duration(milliseconds: RECONNECT_DELAY * 2),
+              () {
+                _onDisconnected();
+              },
+            );
           }
         },
       );

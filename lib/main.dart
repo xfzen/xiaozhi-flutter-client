@@ -11,6 +11,7 @@ import 'package:ai_assistant/screens/test_screen.dart';
 import 'package:ai_assistant/utils/app_theme.dart';
 import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
 import 'package:opus_dart/opus_dart.dart';
+import 'package:web_ffi/web_ffi.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
@@ -86,10 +87,16 @@ void main() async {
 
   // 初始化Opus库
   try {
-    initOpus(await opus_flutter.load());
+    // 使用opus_flutter加载库
+    final opusLib = await opus_flutter.load();
+    initOpus(opusLib);
     print('Opus初始化成功: ${getOpusVersion()}');
   } catch (e) {
     print('Opus初始化失败: $e');
+    if (Platform.isMacOS) {
+      print('macOS平台Opus初始化失败，请确保已安装libopus库');
+      print('请运行: brew install opus');
+    }
   }
 
   // 初始化录音和播放器

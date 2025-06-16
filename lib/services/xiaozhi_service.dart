@@ -80,6 +80,11 @@ class XiaozhiService {
     try {
       print('$TAG: 正在切换到语音通话模式');
 
+      // 确保WebSocket连接已建立
+      if (!_isConnected) {
+        await connect();
+      }
+
       // 简化初始化流程，确保干净状态
       await AudioUtil.stopPlaying();
       await AudioUtil.initRecorder();
@@ -160,7 +165,9 @@ class XiaozhiService {
 
   /// 连接到小智服务
   Future<void> connect() async {
-    if (_isConnected) return;
+    if (_isConnected) {
+      await disconnect();
+    }
 
     try {
       print('$TAG: 开始连接服务器...');
@@ -176,11 +183,41 @@ class XiaozhiService {
 
       // 连接WebSocket
       await _webSocketManager!.connect(websocketUrl, token);
+
+      // 等待连接建立
+      final completer = Completer<void>();
+      void onceListener(XiaozhiServiceEvent event) {
+        if (event.type == XiaozhiServiceEventType.connected) {
+          if (!completer.isCompleted) {
+            completer.complete();
+            removeListener(onceListener);
+          }
+        } else if (event.type == XiaozhiServiceEventType.error) {
+          if (!completer.isCompleted) {
+            completer.completeError(event.data.toString());
+            removeListener(onceListener);
+          }
+        }
+      }
+
+      addListener(onceListener);
+
+      // 设置超时
+      Timer(const Duration(seconds: 5), () {
+        if (!completer.isCompleted) {
+          completer.completeError('连接超时');
+          removeListener(onceListener);
+        }
+      });
+
+      // 等待连接完成或超时
+      await completer.future;
     } catch (e) {
       print('$TAG: 连接失败: $e');
       _dispatchEvent(
         XiaozhiServiceEvent(XiaozhiServiceEventType.error, '连接小智服务失败: $e'),
       );
+      rethrow;
     }
   }
 
@@ -438,9 +475,9 @@ class XiaozhiService {
       await AudioUtil.startRecording();
 
       // 设置音频流订阅
-      _audioStreamSubscription = AudioUtil.audioStream.listen((opusData) {
-        // 发送音频数据
-        _webSocketManager?.sendBinaryMessage(opusData);
+      _audioStreamSubscription = AudioUtil.audioStream.listen((audioData) {
+        // 发送音频数据 (可能是Opus或PCM格式，取决于平台)
+        _webSocketManager?.sendBinaryMessage(audioData);
       });
 
       // 发送开始监听命令
@@ -542,9 +579,15 @@ class XiaozhiService {
         break;
 
       case XiaozhiEventType.binaryMessage:
-        // 处理二进制音频数据 - 简化直接播放
+        // 处理二进制音频数据
         final audioData = event.data as List<int>;
-        AudioUtil.playOpusData(Uint8List.fromList(audioData));
+        if (Platform.isMacOS) {
+          // macOS上直接播放PCM数据
+          AudioUtil.playPcmData(Uint8List.fromList(audioData));
+        } else {
+          // 其他平台播放Opus数据
+          AudioUtil.playOpusData(Uint8List.fromList(audioData));
+        }
         break;
 
       case XiaozhiEventType.error:
@@ -655,19 +698,22 @@ class XiaozhiService {
   /// 开始通话
   void _startCall() {
     try {
+      // 检测音频格式 - macOS上可能回退到PCM
+      final audioFormat = Platform.isMacOS ? 'pcm16' : 'opus';
+
       // 发送开始通话消息
       final startMessage = {
         'type': 'start',
         'mode': 'auto',
         'audio_params': {
-          'format': 'opus',
+          'format': audioFormat,
           'sample_rate': 16000,
           'channels': 1,
           'frame_duration': 60,
         },
       };
       _webSocketManager?.sendMessage(jsonEncode(startMessage));
-      print('$TAG: 已发送开始通话消息');
+      print('$TAG: 已发送开始通话消息，音频格式: $audioFormat');
     } catch (e) {
       print('$TAG: 开始通话失败: $e');
     }
@@ -734,9 +780,9 @@ class XiaozhiService {
       print('$TAG: 已发送开始监听消息 (按住说话)');
 
       // 设置音频流订阅
-      _audioStreamSubscription = AudioUtil.audioStream.listen((opusData) {
-        // 发送音频数据
-        _webSocketManager?.sendBinaryMessage(opusData);
+      _audioStreamSubscription = AudioUtil.audioStream.listen((audioData) {
+        // 发送音频数据 (可能是Opus或PCM格式，取决于平台)
+        _webSocketManager?.sendBinaryMessage(audioData);
       });
     } catch (e) {
       print('$TAG: 开始监听失败: $e');

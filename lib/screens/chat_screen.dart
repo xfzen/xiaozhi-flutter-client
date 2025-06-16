@@ -1286,10 +1286,16 @@ class _ChatScreenState extends State<ChatScreen> {
     _waveAnimationTimer = Timer.periodic(const Duration(milliseconds: 100), (
       timer,
     ) {
-      if (_isRecording && !_isCancelling) {
+      if (_isRecording && !_isCancelling && mounted) {
         setState(() {
+          // 生成更自然的波形
           for (int i = 0; i < _waveHeights.length; i++) {
-            _waveHeights[i] = 0.5 + _random.nextDouble() * 0.5;
+            // 使用正弦波作为基础
+            double baseHeight = math.sin(timer.tick * 0.2 + i * 0.5) * 0.3;
+            // 添加随机波动
+            double randomness = _random.nextDouble() * 0.4;
+            // 确保最终值在合理范围内
+            _waveHeights[i] = (0.5 + baseHeight + randomness).clamp(0.3, 1.0);
           }
         });
       }
@@ -1308,19 +1314,34 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(
-          16,
-          (index) => AnimatedContainer(
+        children: List.generate(20, (index) {
+          final height =
+              _isRecording
+                  ? (30 * _waveHeights[index % _waveHeights.length])
+                  : 15.0;
+          return AnimatedContainer(
             duration: const Duration(milliseconds: 100),
-            width: 3,
-            height: 20 * _waveHeights[index],
+            width: 2,
+            height: height,
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.6),
-              borderRadius: BorderRadius.circular(1.5),
+              color: Colors.blue.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(4),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.blue.shade300, Colors.blue.shade500],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.2),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
             curve: Curves.easeInOut,
-          ),
-        ),
+          );
+        }),
       ),
     );
   }
