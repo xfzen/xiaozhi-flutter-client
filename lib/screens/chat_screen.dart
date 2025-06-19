@@ -132,7 +132,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_xiaozhiService != null && !_xiaozhiService!.isConnected && mounted) {
         try {
           await _xiaozhiService!.disconnect();
-          await _xiaozhiService!.connect();
+          await _xiaozhiService!.connectVoiceCall();
 
           setState(() {});
           print('自动重连 ${_xiaozhiService!.isConnected ? "成功" : "失败"}');
@@ -196,7 +196,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _xiaozhiService!.addListener(_handleXiaozhiMessage);
 
     // 连接服务
-    await _xiaozhiService!.connect();
+    await _xiaozhiService!.connectVoiceCall();
 
     // 连接后刷新UI状态
     if (mounted) {
@@ -216,7 +216,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (event.type == XiaozhiServiceEventType.textMessage) {
       // 直接使用文本内容
       String content = event.data as String;
-      print('收到消息内容: $content');
+      print('ChatScreen: 收到AI回复');
 
       // 忽略空消息
       if (content.isNotEmpty) {
@@ -229,7 +229,7 @@ class _ChatScreenState extends State<ChatScreen> {
     } else if (event.type == XiaozhiServiceEventType.userMessage) {
       // 处理用户的语音识别文本
       String content = event.data as String;
-      print('收到用户语音识别内容: $content');
+      print('ChatScreen: 收到用户语音识别内容');
 
       // 只有在语音输入模式下才添加用户消息
       if (content.isNotEmpty && _isVoiceInputMode) {
@@ -1206,7 +1206,7 @@ class _ChatScreenState extends State<ChatScreen> {
         } else if (!_xiaozhiService!.isConnected) {
           // 如果未连接，尝试重新连接
           print('聊天屏幕: 服务未连接，尝试重新连接');
-          await _xiaozhiService!.connect();
+          await _xiaozhiService!.connectVoiceCall();
 
           // 如果重连失败，提示用户
           if (!_xiaozhiService!.isConnected) {
@@ -1279,7 +1279,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_xiaozhiService != null &&
           widget.conversation.type == ConversationType.xiaozhi) {
         // 重新连接服务
-        _xiaozhiService!.connect();
+        _xiaozhiService!.connectVoiceCall();
       }
     });
   }

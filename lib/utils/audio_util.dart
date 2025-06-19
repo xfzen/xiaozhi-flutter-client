@@ -451,10 +451,13 @@ class AudioUtil {
       await initRecorder();
     }
 
-    if (_isRecording) return;
+    if (_isRecording) {
+      print('$TAG: ⚠️ 录音已经在进行中，跳过重复启动');
+      return;
+    }
 
     try {
-      print('$TAG: 尝试启动录音');
+      print('$TAG: 🎤 尝试启动录音');
 
       // 确保麦克风权限已获取（仅在移动平台） - 使用不同方式检查权限
       if (Platform.isIOS || Platform.isAndroid) {
@@ -465,7 +468,7 @@ class AudioUtil {
           final result = await Permission.microphone.request();
           print('$TAG: 请求麦克风权限结果: $result');
           if (result != PermissionStatus.granted) {
-            print('$TAG: 麦克风权限被拒绝');
+            print('$TAG: ❌ 麦克风权限被拒绝');
             return;
           }
         }
@@ -473,9 +476,15 @@ class AudioUtil {
         print('$TAG: 桌面平台跳过权限检查');
       }
 
+      // ⭐ 修复：确保StreamController未关闭
+      if (_audioStreamController.isClosed) {
+        print('$TAG: ❌ 音频流控制器已关闭，无法开始录音');
+        return;
+      }
+
       // 尝试直接使用音频流
       try {
-        print('$TAG: 尝试启动流式录音');
+        print('$TAG: 🔄 尝试启动流式录音');
         final stream = await _audioRecorder.startStream(
           const RecordConfig(
             encoder: AudioEncoder.pcm16bits,
@@ -485,40 +494,84 @@ class AudioUtil {
         );
 
         _isRecording = true;
-        print('$TAG: 流式录音启动成功');
+        print('$TAG: ✅ 流式录音启动成功');
 
-        // 直接从流中处理数据
+        // ⭐ 修复：改进音频数据处理逻辑
+        int packetCounter = 0;
+        int lastLoggedPacket = 0;
         stream.listen(
           (data) async {
+            if (!_isRecording) {
+              print('$TAG: ⚠️ 录音已停止，忽略音频数据');
+              return;
+            }
+
             if (data.isNotEmpty && data.length % 2 == 0) {
-              if (Platform.isMacOS) {
-                // macOS上直接发送PCM数据
-                _audioStreamController.add(data);
-              } else {
-                // 其他平台使用Opus编码
-                final opusData = await encodeToOpus(data);
-                if (opusData != null) {
-                  _audioStreamController.add(opusData);
+              packetCounter++;
+
+              // ⭐ 合并日志：只在每10个包或出错时打印详细信息
+              bool shouldLog =
+                  (packetCounter % 10 == 1) ||
+                  (packetCounter - lastLoggedPacket > 50);
+              if (shouldLog) {
+                print('$TAG: 🎤 处理音频包 #$packetCounter，长度: ${data.length} 字节');
+                lastLoggedPacket = packetCounter;
+              }
+
+              // ⭐ 修复：确保StreamController可用再发送数据
+              if (_audioStreamController.isClosed) {
+                print('$TAG: ⚠️ StreamController已关闭，停止发送音频数据');
+                return;
+              }
+
+              try {
+                if (Platform.isMacOS) {
+                  // macOS上直接发送PCM数据
+                  if (shouldLog) {
+                    print('$TAG: 📤 macOS平台，发送PCM数据包 #$packetCounter');
+                  }
+                  _audioStreamController.add(data);
+                } else {
+                  // 其他平台使用Opus编码
+                  final opusData = await encodeToOpus(data);
+                  if (opusData != null) {
+                    if (shouldLog) {
+                      print(
+                        '$TAG: 📤 Opus编码成功 #$packetCounter (${data.length}→${opusData.length}字节)',
+                      );
+                    }
+                    _audioStreamController.add(opusData);
+                  } else {
+                    print('$TAG: ❌ Opus编码失败 #$packetCounter');
+                  }
                 }
+              } catch (e) {
+                print('$TAG: ❌ 处理音频包 #$packetCounter 时出错: $e');
+              }
+            } else {
+              if (data.isEmpty) {
+                print('$TAG: ⚠️ 收到空音频数据，跳过');
+              } else {
+                print('$TAG: ⚠️ 音频数据长度异常 (${data.length})，跳过');
               }
             }
           },
           onError: (error) {
-            print('$TAG: 音频流错误: $error');
+            print('$TAG: ❌ 音频流错误: $error');
             _isRecording = false;
           },
           onDone: () {
-            print('$TAG: 音频流结束');
+            print('$TAG: 🔚 音频流结束，总共处理了 $packetCounter 个数据包');
             _isRecording = false;
           },
         );
       } catch (e) {
-        print('$TAG: 流式录音失败: $e');
+        print('$TAG: ❌ 流式录音失败: $e');
         _isRecording = false;
         rethrow;
       }
     } catch (e, stackTrace) {
-      print('$TAG: 启动录音失败: $e');
+      print('$TAG: ❌ 启动录音失败: $e');
       print(stackTrace);
       _isRecording = false;
     }
@@ -601,4 +654,37 @@ class AudioUtil {
 
   /// 检查是否正在播放
   static bool get isPlaying => _isPlaying;
+
+  /// ⭐ 新增：检查音频流健康状态的调试方法
+  static Map<String, dynamic> getAudioStreamStatus() {
+    return {
+      'isRecording': _isRecording,
+      'isPlaying': _isPlaying,
+      'isRecorderInitialized': _isRecorderInitialized,
+      'isPlayerInitialized': _isPlayerInitialized,
+      'opusAvailable': _opusAvailable,
+      'streamControllerClosed': _audioStreamController.isClosed,
+      'hasStreamListeners': _audioStreamController.hasListener,
+      'platform': Platform.operatingSystem,
+    };
+  }
+
+  /// ⭐ 新增：打印音频流状态报告
+  static void printAudioStreamReport() {
+    final status = getAudioStreamStatus();
+    print('$TAG: 📊 音频流状态报告:');
+    status.forEach((key, value) {
+      print('$TAG:   - $key: $value');
+    });
+  }
+
+  /// ⭐ 新增：打印音频流处理统计摘要
+  static void printAudioProcessingSummary() {
+    print('$TAG: 📈 音频处理摘要:');
+    print('$TAG:   - 录音状态: ${_isRecording ? "进行中" : "已停止"}');
+    print('$TAG:   - 播放状态: ${_isPlaying ? "进行中" : "已停止"}');
+    print('$TAG:   - Opus可用: ${_opusAvailable ? "是" : "否"}');
+    print('$TAG:   - 平台: ${Platform.operatingSystem}');
+    print('$TAG:   - 流控制器: ${_audioStreamController.isClosed ? "已关闭" : "正常"}');
+  }
 }

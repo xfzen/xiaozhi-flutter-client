@@ -26,6 +26,18 @@ class XiaozhiWebSocketManager {
   static const String TAG = "XiaozhiWebSocket";
   static const int RECONNECT_DELAY = 3000; // 3秒后重连
 
+  /// 格式化JSON字符串用于打印
+  String _prettyPrintJson(String jsonString) {
+    try {
+      final jsonObject = jsonDecode(jsonString);
+      const encoder = JsonEncoder.withIndent('  ');
+      return encoder.convert(jsonObject);
+    } catch (e) {
+      // 如果解析失败，返回原字符串
+      return jsonString;
+    }
+  }
+
   WebSocketChannel? _channel;
   String? _serverUrl;
   String? _deviceId;
@@ -208,7 +220,9 @@ class XiaozhiWebSocketManager {
               },
     };
 
-    sendMessage(jsonEncode(hello));
+    final jsonString = jsonEncode(hello);
+    print('$TAG: 发送Hello消息:\n${_prettyPrintJson(jsonString)}');
+    _channel!.sink.add(jsonString);
   }
 
   /// 发送文本消息
@@ -222,22 +236,33 @@ class XiaozhiWebSocketManager {
 
   /// 发送二进制数据
   void sendBinaryMessage(List<int> data) {
-    if (_channel != null && isConnected) {
-      // 调试：打印前20个字节的十六进制表示
-      if (data.length > 0) {
-        String hexData = '';
-        for (int i = 0; i < data.length && i < 20; i++) {
-          hexData += '${data[i].toRadixString(16).padLeft(2, '0')} ';
-        }
-      }
+    // ⭐ 修复：更严格的连接状态检查
+    final bool channelExists = _channel != null;
+    final bool streamExists = _streamSubscription != null;
+    final bool connected = isConnected;
 
+    if (channelExists && connected) {
       try {
         _channel!.sink.add(data);
+        // ⭐ 合并日志：成功发送时只记录简单信息，失败时才详细输出
       } catch (e) {
-        print('$TAG: 二进制数据发送失败: $e');
+        print('$TAG: ❌ 二进制数据发送失败: $e');
+        print('$TAG: 数据长度: ${data.length} 字节');
+        // 调试：打印前20个字节的十六进制表示
+        if (data.length > 0) {
+          String hexData = '';
+          for (int i = 0; i < data.length && i < 20; i++) {
+            hexData += '${data[i].toRadixString(16).padLeft(2, '0')} ';
+          }
+          print('$TAG: 数据前20字节: $hexData');
+        }
       }
     } else {
-      print('$TAG: 发送失败，连接未建立');
+      print('$TAG: ❌ 音频数据发送失败，连接状态异常:');
+      print('  - channel存在: $channelExists');
+      print('  - stream存在: $streamExists');
+      print('  - 连接状态: $connected');
+      print('  - 数据长度: ${data.length} 字节');
     }
   }
 
@@ -257,8 +282,9 @@ class XiaozhiWebSocketManager {
         "source": "text",
       };
 
-      print('$TAG: 发送文本请求: ${jsonEncode(jsonMessage)}');
-      sendMessage(jsonEncode(jsonMessage));
+      final jsonString = jsonEncode(jsonMessage);
+      print('$TAG: 发送文本请求:\n${_prettyPrintJson(jsonString)}');
+      _channel!.sink.add(jsonString);
     } catch (e) {
       print('$TAG: 发送文本请求失败: $e');
     }
@@ -267,13 +293,13 @@ class XiaozhiWebSocketManager {
   /// 处理收到的消息
   void _onMessage(dynamic message) {
     if (message is String) {
-      // 文本消息
-      print('$TAG: 收到消息: $message');
+      // 文本消息 - 直接分发，具体解析和打印由上层处理
       _dispatchEvent(
         XiaozhiEvent(type: XiaozhiEventType.message, data: message),
       );
     } else if (message is List<int>) {
       // 二进制消息
+      print('$TAG: 收到二进制消息，长度: ${message.length} 字节');
       _dispatchEvent(
         XiaozhiEvent(type: XiaozhiEventType.binaryMessage, data: message),
       );
