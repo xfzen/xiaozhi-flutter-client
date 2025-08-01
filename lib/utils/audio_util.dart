@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:collection';
+import 'dart:math';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -459,6 +460,9 @@ class AudioUtil {
     try {
       print('$TAG: 🎤 尝试启动录音');
 
+      // 打印当前音频流状态
+      printAudioStreamReport();
+
       // 确保麦克风权限已获取（仅在移动平台） - 使用不同方式检查权限
       if (Platform.isIOS || Platform.isAndroid) {
         final status = await Permission.microphone.status;
@@ -474,6 +478,26 @@ class AudioUtil {
         }
       } else {
         print('$TAG: 桌面平台跳过权限检查');
+      }
+
+      // 检查录音器是否可用
+      final hasPermission = await _audioRecorder.hasPermission();
+      print('$TAG: 录音器权限检查结果: $hasPermission');
+
+      if (!hasPermission) {
+        print('$TAG: ❌ 录音器没有权限');
+        return;
+      }
+
+      // 检查可用的音频输入设备
+      try {
+        final devices = await _audioRecorder.listInputDevices();
+        print('$TAG: 可用音频输入设备数量: ${devices.length}');
+        for (int i = 0; i < devices.length; i++) {
+          print('$TAG: 设备 $i: ${devices[i].toString()}');
+        }
+      } catch (e) {
+        print('$TAG: 获取音频设备列表失败: $e');
       }
 
       // ⭐ 修复：确保StreamController未关闭
@@ -499,6 +523,7 @@ class AudioUtil {
         // ⭐ 修复：改进音频数据处理逻辑
         int packetCounter = 0;
         int lastLoggedPacket = 0;
+        double totalAudioLevel = 0.0;
         stream.listen(
           (data) async {
             if (!_isRecording) {
@@ -509,12 +534,23 @@ class AudioUtil {
             if (data.isNotEmpty && data.length % 2 == 0) {
               packetCounter++;
 
+              // 计算音频电平（用于检测是否有真实音频输入）
+              final audioLevel = _calculateAudioLevel(data);
+              totalAudioLevel += audioLevel;
+
               // ⭐ 合并日志：只在每10个包或出错时打印详细信息
               bool shouldLog =
                   (packetCounter % 10 == 1) ||
                   (packetCounter - lastLoggedPacket > 50);
               if (shouldLog) {
-                print('$TAG: 🎤 处理音频包 #$packetCounter，长度: ${data.length} 字节');
+                final avgLevel = totalAudioLevel / packetCounter;
+                final analysis = _analyzeAudioData(data);
+                print(
+                  '$TAG: 🎤 处理音频包 #$packetCounter，长度: ${data.length} 字节，音频电平: ${audioLevel.toStringAsFixed(3)}, 平均电平: ${avgLevel.toStringAsFixed(3)}',
+                );
+                print(
+                  '$TAG: 📊 音频分析: 非零样本${analysis['nonZeroPercentage']}%, 范围${analysis['range']}, RMS${analysis['rms'].toStringAsFixed(4)}, 静音:${analysis['isSilent']}',
+                );
                 lastLoggedPacket = packetCounter;
               }
 
@@ -686,5 +722,73 @@ class AudioUtil {
     print('$TAG:   - Opus可用: ${_opusAvailable ? "是" : "否"}');
     print('$TAG:   - 平台: ${Platform.operatingSystem}');
     print('$TAG:   - 流控制器: ${_audioStreamController.isClosed ? "已关闭" : "正常"}');
+  }
+
+  /// 计算音频电平（RMS值）
+  static double _calculateAudioLevel(Uint8List pcmData) {
+    if (pcmData.length < 2) return 0.0;
+
+    // 将字节数据转换为16位整数
+    final samples = Int16List.view(pcmData.buffer);
+    double sum = 0.0;
+    int nonZeroSamples = 0;
+
+    for (int i = 0; i < samples.length; i++) {
+      final sample = samples[i] / 32768.0; // 归一化到 -1.0 到 1.0
+      sum += sample * sample;
+      if (samples[i] != 0) nonZeroSamples++;
+    }
+
+    final rms = sqrt(sum / samples.length);
+
+    // 添加调试信息：检查是否有非零样本
+    if (nonZeroSamples == 0) {
+      print('$TAG: ⚠️ 音频数据全为零！可能没有真正录制到音频');
+    }
+
+    return rms;
+  }
+
+  /// 检查音频数据是否为静音
+  static bool _isAudioSilent(Uint8List pcmData, {double threshold = 0.001}) {
+    final level = _calculateAudioLevel(pcmData);
+    return level < threshold;
+  }
+
+  /// 分析音频数据的详细信息
+  static Map<String, dynamic> _analyzeAudioData(Uint8List pcmData) {
+    if (pcmData.length < 2) {
+      return {'valid': false, 'reason': '数据长度不足'};
+    }
+
+    final samples = Int16List.view(pcmData.buffer);
+    int minSample = samples[0];
+    int maxSample = samples[0];
+    int nonZeroCount = 0;
+    double sum = 0.0;
+
+    for (int i = 0; i < samples.length; i++) {
+      final sample = samples[i];
+      if (sample < minSample) minSample = sample;
+      if (sample > maxSample) maxSample = sample;
+      if (sample != 0) nonZeroCount++;
+      sum += (sample / 32768.0) * (sample / 32768.0);
+    }
+
+    final rms = sqrt(sum / samples.length);
+    final range = maxSample - minSample;
+
+    return {
+      'valid': true,
+      'sampleCount': samples.length,
+      'nonZeroCount': nonZeroCount,
+      'minSample': minSample,
+      'maxSample': maxSample,
+      'range': range,
+      'rms': rms,
+      'isSilent': rms < 0.001,
+      'nonZeroPercentage': (nonZeroCount / samples.length * 100)
+          .toStringAsFixed(1),
+    };
   }
 }

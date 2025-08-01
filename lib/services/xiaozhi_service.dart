@@ -846,6 +846,11 @@ class XiaozhiService {
         return;
       }
 
+      // ⭐ 修复：设置语音通话模式，确保录音不会自动停止
+      print('$TAG: 按住说话模式，临时启用语音通话状态');
+      _stateCache.setVoiceCallActive(true);
+      _stateCache.setCallStarted(false);
+
       // 开始录音
       await AudioUtil.startRecording();
 
@@ -874,6 +879,11 @@ class XiaozhiService {
 
       // 停止录音
       await AudioUtil.stopRecording();
+
+      // ⭐ 修复：重置语音通话状态
+      print('$TAG: 按住说话结束，重置语音通话状态');
+      _stateCache.setVoiceCallActive(false);
+      _stateCache.setCallStarted(false);
 
       // 发送停止监听命令
       if (_sessionId != null && _messageManager != null) {

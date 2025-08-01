@@ -198,6 +198,12 @@ class _ChatScreenState extends State<ChatScreen> {
     // 连接服务
     await _xiaozhiService!.connectVoiceCall();
 
+    // 如果启用了语音输入模式，切换到语音通话模式
+    if (_isVoiceInputMode) {
+      print('ChatScreen: 启用语音输入模式，切换到语音通话模式');
+      await _xiaozhiService!.switchToVoiceCallMode();
+    }
+
     // 连接后刷新UI状态
     if (mounted) {
       setState(() {});
@@ -1667,10 +1673,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // 请求必要的权限
   Future<void> _requestPermissions() async {
+    // macOS 平台跳过权限请求，因为权限在 Info.plist 和 entitlements 中已配置
+    if (Platform.isMacOS) {
+      print('macOS平台跳过权限请求，权限已在配置文件中设置');
+      return;
+    }
+
     if (widget.conversation.type == ConversationType.xiaozhi) {
-      // 请求麦克风权限
-      final micStatus = await Permission.microphone.request();
-      print('麦克风权限状态: $micStatus');
+      // 请求麦克风权限（仅移动平台）
+      if (Platform.isAndroid || Platform.isIOS) {
+        final micStatus = await Permission.microphone.request();
+        print('麦克风权限状态: $micStatus');
+      }
 
       // 请求本地网络权限（iOS特有）
       if (Platform.isIOS) {
@@ -1683,10 +1697,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // 如果需要相机和相册权限（用于图片上传功能）
     if (widget.conversation.type == ConversationType.dify) {
-      final cameraStatus = await Permission.camera.request();
-      final photosStatus = await Permission.photos.request();
-      print('相机权限状态: $cameraStatus');
-      print('相册权限状态: $photosStatus');
+      if (Platform.isAndroid || Platform.isIOS) {
+        final cameraStatus = await Permission.camera.request();
+        final photosStatus = await Permission.photos.request();
+        print('相机权限状态: $cameraStatus');
+        print('相册权限状态: $photosStatus');
+      }
     }
   }
 }
