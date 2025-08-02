@@ -868,6 +868,7 @@ class XiaozhiService {
 
       // ⭐ 修复：设置音频流订阅，确保只处理当前录音的数据
       int packetCount = 0;
+      int sentPacketCount = 0; // ⭐ 新增：已发送包计数
       final currentRecordingId = DateTime.now().millisecondsSinceEpoch;
       print('$TAG: 当前录音ID: $currentRecordingId');
       
@@ -883,8 +884,17 @@ class XiaozhiService {
           if (packetCount % 20 == 1) {
             print('$TAG: [录音$currentRecordingId] 发送音频包 #$packetCount，长度: ${audioData.length}');
           }
-          // 实时发送音频数据到服务器
-          _webSocketManager?.sendBinaryMessage(audioData);
+          
+          // ⭐ 改进：检查WebSocket连接状态再发送
+          if (_webSocketManager != null && _isConnected) {
+            _webSocketManager!.sendBinaryMessage(audioData);
+            sentPacketCount++;
+            if (sentPacketCount % 20 == 1) {
+              print('$TAG: [录音$currentRecordingId] 已发送音频包 #$sentPacketCount');
+            }
+          } else {
+            print('$TAG: ⚠️ WebSocket未连接，音频包 #$packetCount 发送失败');
+          }
         },
         onError: (error) {
           print('$TAG: [录音$currentRecordingId] 音频流错误: $error');
@@ -918,8 +928,9 @@ class XiaozhiService {
         print('$TAG: 已停止录音');
       }
 
-      // ⭐ 修复：等待一小段时间，让最后的音频数据发送完成
-      await Future.delayed(const Duration(milliseconds: 100));
+      // ⭐ 修复：等待更长时间，确保最后的音频数据发送完成
+      // 考虑到网络延迟和缓冲，增加等待时间
+      await Future.delayed(const Duration(milliseconds: 300));
 
       // ⭐ 修复：取消音频流订阅，停止发送音频数据
       if (_audioStreamSubscription != null) {

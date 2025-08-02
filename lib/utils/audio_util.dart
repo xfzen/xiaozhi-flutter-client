@@ -527,7 +527,7 @@ class AudioUtil {
         int lastLoggedPacket = 0;
         double totalAudioLevel = 0.0;
         final recordingStartTime = DateTime.now().millisecondsSinceEpoch;
-        
+
         stream.listen(
           (data) async {
             // ⭐ 修复：双重检查录音状态
@@ -575,7 +575,9 @@ class AudioUtil {
                 if (Platform.isMacOS) {
                   // macOS上直接发送PCM数据
                   if (shouldLog) {
-                    print('$TAG: 📤 [录音$recordingStartTime] macOS平台，发送PCM数据包 #$packetCounter');
+                    print(
+                      '$TAG: 📤 [录音$recordingStartTime] macOS平台，发送PCM数据包 #$packetCounter',
+                    );
                   }
                   _audioStreamController.add(data);
                 } else {
@@ -589,17 +591,23 @@ class AudioUtil {
                     }
                     _audioStreamController.add(opusData);
                   } else {
-                    print('$TAG: ❌ [录音$recordingStartTime] Opus编码失败 #$packetCounter');
+                    print(
+                      '$TAG: ❌ [录音$recordingStartTime] Opus编码失败 #$packetCounter',
+                    );
                   }
                 }
               } catch (e) {
-                print('$TAG: ❌ [录音$recordingStartTime] 处理音频包 #$packetCounter 时出错: $e');
+                print(
+                  '$TAG: ❌ [录音$recordingStartTime] 处理音频包 #$packetCounter 时出错: $e',
+                );
               }
             } else {
               if (data.isEmpty) {
                 print('$TAG: ⚠️ [录音$recordingStartTime] 收到空音频数据，跳过');
               } else {
-                print('$TAG: ⚠️ [录音$recordingStartTime] 音频数据长度异常 (${data.length})，跳过');
+                print(
+                  '$TAG: ⚠️ [录音$recordingStartTime] 音频数据长度异常 (${data.length})，跳过',
+                );
               }
             }
           },
@@ -643,10 +651,10 @@ class AudioUtil {
     try {
       final path = await _audioRecorder.stop();
       print('$TAG: 录音已停止，路径: $path');
-      
+
       // ⭐ 修复：等待一小段时间确保音频流完全结束
       await Future.delayed(const Duration(milliseconds: 100));
-      
+
       return path;
     } catch (e) {
       print('$TAG: 停止录音失败: $e');
