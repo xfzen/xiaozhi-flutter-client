@@ -1,14 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_sound/flutter_sound.dart';
 import '../services/xiaozhi_websocket_manager.dart';
 import '../services/xiaozhi_message_manager.dart';
 import '../models/xiaozhi_message.dart';
-import '../utils/device_util.dart';
 import '../utils/audio_util.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -96,11 +92,13 @@ class XiaozhiService {
   final List<XiaozhiServiceListener> _listeners = [];
   StreamSubscription? _audioStreamSubscription;
   StreamSubscription? _messageStreamSubscription;
-  WebSocketChannel? _ws;
   MessageListener? _messageListener;
 
   // 使用全局状态缓存
   final VoiceCallStateCache _stateCache = VoiceCallStateCache();
+
+  // ⭐ 新增：按住说话模式的独立状态管理
+  bool _isPushToTalkMode = false;
 
   /// 构造函数 - 移除单例模式，允许创建多个实例
   XiaozhiService({
@@ -306,7 +304,18 @@ class XiaozhiService {
         break;
 
       default:
-        print('$TAG: 收到未知类型消息: ${message.type}');
+        // ⭐ 修复：处理未知消息类型，特别是LLM消息
+        if (message is UnknownMessage && message.typeString == 'llm') {
+          final text = message.rawData['text'] as String?;
+          if (text != null && text.isNotEmpty) {
+            print('$TAG: 收到LLM回复: $text');
+            _dispatchEvent(
+              XiaozhiServiceEvent(XiaozhiServiceEventType.textMessage, text),
+            );
+          }
+        } else {
+          print('$TAG: 收到未知类型消息: ${message.type}');
+        }
     }
 
     // 更新会话ID
@@ -431,7 +440,6 @@ class XiaozhiService {
     try {
       // 创建一个Completer来等待响应
       final completer = Completer<String>();
-      bool hasResponse = false;
 
       print('$TAG: 开始发送文本消息: $message');
 
@@ -446,7 +454,6 @@ class XiaozhiService {
 
           print('$TAG: 收到服务器响应: ${event.data}');
           if (!completer.isCompleted) {
-            hasResponse = true;
             completer.complete(event.data as String);
             removeListener(onceListener);
           }
@@ -782,15 +789,6 @@ class XiaozhiService {
     }
   }
 
-  /// 开始通话
-  void _startCall() {
-    try {
-      _messageManager?.sendStart();
-    } catch (e) {
-      print('$TAG: 开始通话失败: $e');
-    }
-  }
-
   /// 中断音频播放
   Future<void> stopPlayback() async {
     try {
@@ -846,26 +844,61 @@ class XiaozhiService {
         return;
       }
 
-      // ⭐ 修复：设置语音通话模式，确保录音不会自动停止
-      print('$TAG: 按住说话模式，临时启用语音通话状态');
-      _stateCache.setVoiceCallActive(true);
-      _stateCache.setCallStarted(false);
+      print('$TAG: 开始按住说话模式录音');
+
+      // ⭐ 修复：设置按住说话模式标志
+      _isPushToTalkMode = true;
+
+      // ⭐ 修复：确保之前的录音完全停止
+      if (AudioUtil.isRecording) {
+        await AudioUtil.stopRecording();
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
+      // ⭐ 修复：取消任何现有的音频流订阅
+      if (_audioStreamSubscription != null) {
+        await _audioStreamSubscription?.cancel();
+        _audioStreamSubscription = null;
+      }
 
       // 开始录音
       await AudioUtil.startRecording();
+      print('$TAG: 录音已开始');
 
       // 发送开始监听命令
       await _messageManager?.sendVoiceListenStart(
         mode: Mode.values.byName(mode),
       );
+      print('$TAG: 已发送开始监听命令');
 
-      // 设置音频流订阅
-      _audioStreamSubscription = AudioUtil.audioStream.listen((audioData) {
-        // 发送音频数据 (可能是Opus或PCM格式，取决于平台)
-        _webSocketManager?.sendBinaryMessage(audioData);
-      });
+      // ⭐ 修复：设置音频流订阅，实时发送音频数据
+      int packetCount = 0;
+      _audioStreamSubscription = AudioUtil.audioStream.listen(
+        (audioData) {
+          packetCount++;
+          if (packetCount % 20 == 1) {
+            print('$TAG: 发送音频包 #$packetCount，长度: ${audioData.length}');
+          }
+          // 实时发送音频数据到服务器
+          _webSocketManager?.sendBinaryMessage(audioData);
+        },
+        onError: (error) {
+          print('$TAG: 音频流错误: $error');
+        },
+        onDone: () {
+          print('$TAG: 音频流结束，共发送 $packetCount 个包');
+        },
+      );
+
+      print('$TAG: 按住说话录音启动完成');
     } catch (e) {
       print('$TAG: 开始监听失败: $e');
+      // 出错时清理资源
+      await _audioStreamSubscription?.cancel();
+      _audioStreamSubscription = null;
+      if (AudioUtil.isRecording) {
+        await AudioUtil.stopRecording();
+      }
       throw Exception('开始语音输入失败: $e');
     }
   }
@@ -873,24 +906,41 @@ class XiaozhiService {
   /// 停止监听（按住说话模式）
   Future<void> stopListening() async {
     try {
-      // 取消音频流订阅
-      await _audioStreamSubscription?.cancel();
-      _audioStreamSubscription = null;
+      print('$TAG: 按住说话结束，开始停止流程');
 
-      // 停止录音
-      await AudioUtil.stopRecording();
+      // ⭐ 修复：先停止录音，确保不再产生新的音频数据
+      if (AudioUtil.isRecording) {
+        await AudioUtil.stopRecording();
+        print('$TAG: 已停止录音');
+      }
 
-      // ⭐ 修复：重置语音通话状态
-      print('$TAG: 按住说话结束，重置语音通话状态');
-      _stateCache.setVoiceCallActive(false);
-      _stateCache.setCallStarted(false);
+      // ⭐ 修复：取消音频流订阅，停止发送音频数据
+      if (_audioStreamSubscription != null) {
+        await _audioStreamSubscription?.cancel();
+        _audioStreamSubscription = null;
+        print('$TAG: 已取消音频流订阅');
+      }
 
-      // 发送停止监听命令
+      // ⭐ 修复：最后发送停止监听命令，告诉服务器处理已收到的音频
       if (_sessionId != null && _messageManager != null) {
         await _messageManager!.sendVoiceListenStop();
+        print('$TAG: 已发送停止监听命令，服务器开始处理音频');
       }
+
+      // ⭐ 修复：重置按住说话模式标志
+      _isPushToTalkMode = false;
+
+      print('$TAG: 按住说话停止完成，等待服务器响应');
     } catch (e) {
       print('$TAG: 停止监听失败: $e');
+      // 出错时确保清理资源
+      await _audioStreamSubscription?.cancel();
+      _audioStreamSubscription = null;
+      if (AudioUtil.isRecording) {
+        await AudioUtil.stopRecording();
+      }
+      // 出错时也要重置标志
+      _isPushToTalkMode = false;
     }
   }
 
@@ -925,4 +975,7 @@ class XiaozhiService {
 
   /// 判断是否正在说话
   bool get _isSpeaking => _audioStreamSubscription != null;
+
+  /// 判断是否处于按住说话模式
+  bool get isPushToTalkMode => _isPushToTalkMode;
 }
