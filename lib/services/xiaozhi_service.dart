@@ -99,6 +99,7 @@ class XiaozhiService {
 
   // ⭐ 新增：按住说话模式的独立状态管理
   bool _isPushToTalkMode = false;
+  bool _isTtsPlaying = false; // ⭐ 新增：TTS播放状态标志
 
   /// 构造函数 - 移除单例模式，允许创建多个实例
   XiaozhiService({
@@ -849,56 +850,56 @@ class XiaozhiService {
       // ⭐ 修复：设置按住说话模式标志
       _isPushToTalkMode = true;
 
-      // ⭐ 修复：确保之前的录音完全停止
-      if (AudioUtil.isRecording) {
-        await AudioUtil.stopRecording();
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
+      // ⭐ 修复：确保完全清理之前的状态
+      await _cleanupPreviousRecording();
 
-      // ⭐ 修复：取消任何现有的音频流订阅
-      if (_audioStreamSubscription != null) {
-        await _audioStreamSubscription?.cancel();
-        _audioStreamSubscription = null;
-      }
-
-      // 开始录音
-      await AudioUtil.startRecording();
-      print('$TAG: 录音已开始');
-
-      // 发送开始监听命令
+      // ⭐ 修复：先发送开始监听命令，再开始录音
       await _messageManager?.sendVoiceListenStart(
         mode: Mode.values.byName(mode),
       );
       print('$TAG: 已发送开始监听命令');
 
-      // ⭐ 修复：设置音频流订阅，实时发送音频数据
+      // ⭐ 修复：等待一小段时间确保服务器准备好接收音频
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // 开始录音
+      await AudioUtil.startRecording();
+      print('$TAG: 录音已开始');
+
+      // ⭐ 修复：设置音频流订阅，确保只处理当前录音的数据
       int packetCount = 0;
+      final currentRecordingId = DateTime.now().millisecondsSinceEpoch;
+      print('$TAG: 当前录音ID: $currentRecordingId');
+      
       _audioStreamSubscription = AudioUtil.audioStream.listen(
         (audioData) {
+          // ⭐ 修复：检查是否仍在按住说话模式
+          if (!_isPushToTalkMode) {
+            print('$TAG: 不在按住说话模式，忽略音频数据');
+            return;
+          }
+          
           packetCount++;
           if (packetCount % 20 == 1) {
-            print('$TAG: 发送音频包 #$packetCount，长度: ${audioData.length}');
+            print('$TAG: [录音$currentRecordingId] 发送音频包 #$packetCount，长度: ${audioData.length}');
           }
           // 实时发送音频数据到服务器
           _webSocketManager?.sendBinaryMessage(audioData);
         },
         onError: (error) {
-          print('$TAG: 音频流错误: $error');
+          print('$TAG: [录音$currentRecordingId] 音频流错误: $error');
         },
         onDone: () {
-          print('$TAG: 音频流结束，共发送 $packetCount 个包');
+          print('$TAG: [录音$currentRecordingId] 音频流结束，共发送 $packetCount 个包');
         },
       );
 
-      print('$TAG: 按住说话录音启动完成');
+      print('$TAG: 按住说话录音启动完成，录音ID: $currentRecordingId');
     } catch (e) {
       print('$TAG: 开始监听失败: $e');
       // 出错时清理资源
-      await _audioStreamSubscription?.cancel();
-      _audioStreamSubscription = null;
-      if (AudioUtil.isRecording) {
-        await AudioUtil.stopRecording();
-      }
+      await _cleanupPreviousRecording();
+      _isPushToTalkMode = false;
       throw Exception('开始语音输入失败: $e');
     }
   }
@@ -908,11 +909,17 @@ class XiaozhiService {
     try {
       print('$TAG: 按住说话结束，开始停止流程');
 
+      // ⭐ 修复：立即设置标志，防止新的音频数据被处理
+      _isPushToTalkMode = false;
+
       // ⭐ 修复：先停止录音，确保不再产生新的音频数据
       if (AudioUtil.isRecording) {
         await AudioUtil.stopRecording();
         print('$TAG: 已停止录音');
       }
+
+      // ⭐ 修复：等待一小段时间，让最后的音频数据发送完成
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // ⭐ 修复：取消音频流订阅，停止发送音频数据
       if (_audioStreamSubscription != null) {
@@ -921,26 +928,40 @@ class XiaozhiService {
         print('$TAG: 已取消音频流订阅');
       }
 
-      // ⭐ 修复：最后发送停止监听命令，告诉服务器处理已收到的音频
+      // ⭐ 修复：发送停止监听命令，告诉服务器处理已收到的音频
       if (_sessionId != null && _messageManager != null) {
         await _messageManager!.sendVoiceListenStop();
         print('$TAG: 已发送停止监听命令，服务器开始处理音频');
       }
 
-      // ⭐ 修复：重置按住说话模式标志
-      _isPushToTalkMode = false;
-
       print('$TAG: 按住说话停止完成，等待服务器响应');
     } catch (e) {
       print('$TAG: 停止监听失败: $e');
       // 出错时确保清理资源
-      await _audioStreamSubscription?.cancel();
-      _audioStreamSubscription = null;
+      await _cleanupPreviousRecording();
+    }
+  }
+
+  /// ⭐ 新增：清理之前录音的辅助方法
+  Future<void> _cleanupPreviousRecording() async {
+    try {
+      // 取消音频流订阅
+      if (_audioStreamSubscription != null) {
+        await _audioStreamSubscription?.cancel();
+        _audioStreamSubscription = null;
+        print('$TAG: 已清理音频流订阅');
+      }
+
+      // 停止录音
       if (AudioUtil.isRecording) {
         await AudioUtil.stopRecording();
+        print('$TAG: 已停止之前的录音');
       }
-      // 出错时也要重置标志
-      _isPushToTalkMode = false;
+
+      // 等待一小段时间确保清理完成
+      await Future.delayed(const Duration(milliseconds: 50));
+    } catch (e) {
+      print('$TAG: 清理之前录音失败: $e');
     }
   }
 

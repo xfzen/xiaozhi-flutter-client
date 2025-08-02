@@ -198,10 +198,12 @@ class _ChatScreenState extends State<ChatScreen> {
     // 连接服务
     await _xiaozhiService!.connectVoiceCall();
 
-    // 如果启用了语音输入模式，切换到语音通话模式
+    // ⭐ 修复：语音输入模式使用按住说话，不需要自动切换到语音通话模式
+    // 只建立WebSocket连接，不自动开始录音
     if (_isVoiceInputMode) {
-      print('ChatScreen: 启用语音输入模式，切换到语音通话模式');
-      await _xiaozhiService!.switchToVoiceCallMode();
+      print('ChatScreen: 启用语音输入模式，建立连接但不自动开始录音');
+      // 只连接，不切换到语音通话模式
+      await _xiaozhiService!.connectVoiceCall();
     }
 
     // 连接后刷新UI状态
@@ -846,7 +848,6 @@ class _ChatScreenState extends State<ChatScreen> {
             child: GestureDetector(
               onLongPressStart: (details) {
                 setState(() {
-                  _isRecording = true;
                   _isCancelling = false;
                   _startDragY = details.globalPosition.dy;
                 });
@@ -1027,11 +1028,27 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     try {
+      // ⭐ 修复：防止重复开始录音
+      if (_isRecording) {
+        print('录音已经在进行中，避免重复操作');
+        return;
+      }
+
+      print('开始录音流程...');
+
       // 震动反馈
       HapticFeedback.mediumImpact();
 
-      // 开始录音
+      // ⭐ 修复：使用按住说话模式
+      print('开始按住说话录音');
       await _xiaozhiService!.startListening();
+      
+      // ⭐ 修复：录音成功开始后才设置状态
+      setState(() {
+        _isRecording = true;
+      });
+      
+      print('录音开始成功');
     } catch (e) {
       print('开始录音失败: $e');
       _showCustomSnackbar('无法开始录音: ${e.toString()}');
@@ -1045,6 +1062,8 @@ class _ChatScreenState extends State<ChatScreen> {
   // 停止录音并发送
   void _stopRecording() async {
     try {
+      print('执行停止录音操作...');
+
       setState(() {
         _isLoading = true;
         _isRecording = false;
@@ -1055,8 +1074,13 @@ class _ChatScreenState extends State<ChatScreen> {
       // 震动反馈
       HapticFeedback.mediumImpact();
 
-      // 停止录音
-      await _xiaozhiService?.stopListening();
+      print('开始停止录音流程...');
+      
+      // ⭐ 修复：使用按住说话模式
+      print('停止按住说话录音');
+      await _xiaozhiService!.stopListening();
+      
+      print('录音停止完成，等待服务器响应...');
 
       _scrollToBottom();
     } catch (e) {

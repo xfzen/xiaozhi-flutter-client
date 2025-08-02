@@ -453,8 +453,10 @@ class AudioUtil {
     }
 
     if (_isRecording) {
-      print('$TAG: ⚠️ 录音已经在进行中，跳过重复启动');
-      return;
+      print('$TAG: ⚠️ 录音已经在进行中，先停止之前的录音');
+      await stopRecording();
+      // 等待一小段时间确保完全停止
+      await Future.delayed(const Duration(milliseconds: 200));
     }
 
     try {
@@ -524,10 +526,13 @@ class AudioUtil {
         int packetCounter = 0;
         int lastLoggedPacket = 0;
         double totalAudioLevel = 0.0;
+        final recordingStartTime = DateTime.now().millisecondsSinceEpoch;
+        
         stream.listen(
           (data) async {
+            // ⭐ 修复：双重检查录音状态
             if (!_isRecording) {
-              print('$TAG: ⚠️ 录音已停止，忽略音频数据');
+              print('$TAG: ⚠️ 录音已停止，忽略音频数据包 #$packetCounter');
               return;
             }
 
@@ -546,10 +551,10 @@ class AudioUtil {
                 final avgLevel = totalAudioLevel / packetCounter;
                 final analysis = _analyzeAudioData(data);
                 print(
-                  '$TAG: 🎤 处理音频包 #$packetCounter，长度: ${data.length} 字节，音频电平: ${audioLevel.toStringAsFixed(3)}, 平均电平: ${avgLevel.toStringAsFixed(3)}',
+                  '$TAG: 🎤 [录音$recordingStartTime] 处理音频包 #$packetCounter，长度: ${data.length} 字节，音频电平: ${audioLevel.toStringAsFixed(3)}, 平均电平: ${avgLevel.toStringAsFixed(3)}',
                 );
                 print(
-                  '$TAG: 📊 音频分析: 非零样本${analysis['nonZeroPercentage']}%, 范围${analysis['range']}, RMS${analysis['rms'].toStringAsFixed(4)}, 静音:${analysis['isSilent']}',
+                  '$TAG: 📊 [录音$recordingStartTime] 音频分析: 非零样本${analysis['nonZeroPercentage']}%, 范围${analysis['range']}, RMS${analysis['rms'].toStringAsFixed(4)}, 静音:${analysis['isSilent']}',
                 );
                 lastLoggedPacket = packetCounter;
               }
@@ -560,11 +565,17 @@ class AudioUtil {
                 return;
               }
 
+              // ⭐ 修复：再次检查录音状态，确保不发送过期数据
+              if (!_isRecording) {
+                print('$TAG: ⚠️ 录音状态已变更，停止处理音频包 #$packetCounter');
+                return;
+              }
+
               try {
                 if (Platform.isMacOS) {
                   // macOS上直接发送PCM数据
                   if (shouldLog) {
-                    print('$TAG: 📤 macOS平台，发送PCM数据包 #$packetCounter');
+                    print('$TAG: 📤 [录音$recordingStartTime] macOS平台，发送PCM数据包 #$packetCounter');
                   }
                   _audioStreamController.add(data);
                 } else {
@@ -573,22 +584,22 @@ class AudioUtil {
                   if (opusData != null) {
                     if (shouldLog) {
                       print(
-                        '$TAG: 📤 Opus编码成功 #$packetCounter (${data.length}→${opusData.length}字节)',
+                        '$TAG: 📤 [录音$recordingStartTime] Opus编码成功 #$packetCounter (${data.length}→${opusData.length}字节)',
                       );
                     }
                     _audioStreamController.add(opusData);
                   } else {
-                    print('$TAG: ❌ Opus编码失败 #$packetCounter');
+                    print('$TAG: ❌ [录音$recordingStartTime] Opus编码失败 #$packetCounter');
                   }
                 }
               } catch (e) {
-                print('$TAG: ❌ 处理音频包 #$packetCounter 时出错: $e');
+                print('$TAG: ❌ [录音$recordingStartTime] 处理音频包 #$packetCounter 时出错: $e');
               }
             } else {
               if (data.isEmpty) {
-                print('$TAG: ⚠️ 收到空音频数据，跳过');
+                print('$TAG: ⚠️ [录音$recordingStartTime] 收到空音频数据，跳过');
               } else {
-                print('$TAG: ⚠️ 音频数据长度异常 (${data.length})，跳过');
+                print('$TAG: ⚠️ [录音$recordingStartTime] 音频数据长度异常 (${data.length})，跳过');
               }
             }
           },
@@ -615,7 +626,15 @@ class AudioUtil {
 
   /// 停止录音
   static Future<String?> stopRecording() async {
-    if (!_isRecorderInitialized || !_isRecording) return null;
+    if (!_isRecorderInitialized || !_isRecording) {
+      print('$TAG: 录音器未初始化或未在录音，跳过停止操作');
+      return null;
+    }
+
+    print('$TAG: 开始停止录音流程');
+
+    // ⭐ 修复：立即设置录音状态为false，防止新的音频数据被处理
+    _isRecording = false;
 
     // 取消定时器
     _audioProcessingTimer?.cancel();
@@ -623,12 +642,14 @@ class AudioUtil {
     // 停止录音
     try {
       final path = await _audioRecorder.stop();
-      _isRecording = false;
-      print('$TAG: 停止录音: $path');
+      print('$TAG: 录音已停止，路径: $path');
+      
+      // ⭐ 修复：等待一小段时间确保音频流完全结束
+      await Future.delayed(const Duration(milliseconds: 100));
+      
       return path;
     } catch (e) {
       print('$TAG: 停止录音失败: $e');
-      _isRecording = false;
       return null;
     }
   }
