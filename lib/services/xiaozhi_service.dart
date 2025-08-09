@@ -859,8 +859,8 @@ class XiaozhiService {
       );
       print('$TAG: 已发送开始监听命令');
 
-      // ⭐ 修复：等待一小段时间确保服务器准备好接收音频
-      await Future.delayed(const Duration(milliseconds: 50));
+      // ⭐ 修复：等待更长时间确保服务器准备好接收音频
+      await Future.delayed(const Duration(milliseconds: 200));
 
       // 开始录音
       await AudioUtil.startRecording();
@@ -871,20 +871,22 @@ class XiaozhiService {
       int sentPacketCount = 0; // ⭐ 新增：已发送包计数
       final currentRecordingId = DateTime.now().millisecondsSinceEpoch;
       print('$TAG: 当前录音ID: $currentRecordingId');
-      
+
       _audioStreamSubscription = AudioUtil.audioStream.listen(
         (audioData) {
-          // ⭐ 修复：检查是否仍在按住说话模式
-          if (!_isPushToTalkMode) {
-            print('$TAG: 不在按住说话模式，忽略音频数据');
+          // ⭐ 修复：检查是否仍在按住说话模式和录音状态
+          if (!_isPushToTalkMode || !AudioUtil.isRecording) {
+            print('$TAG: 不在按住说话模式或录音已停止，忽略音频数据');
             return;
           }
-          
+
           packetCount++;
           if (packetCount % 20 == 1) {
-            print('$TAG: [录音$currentRecordingId] 发送音频包 #$packetCount，长度: ${audioData.length}');
+            print(
+              '$TAG: [录音$currentRecordingId] 发送音频包 #$packetCount，长度: ${audioData.length}',
+            );
           }
-          
+
           // ⭐ 改进：检查WebSocket连接状态再发送
           if (_webSocketManager != null && _isConnected) {
             _webSocketManager!.sendBinaryMessage(audioData);
@@ -919,9 +921,6 @@ class XiaozhiService {
     try {
       print('$TAG: 按住说话结束，开始停止流程');
 
-      // ⭐ 修复：立即设置标志，防止新的音频数据被处理
-      _isPushToTalkMode = false;
-
       // ⭐ 修复：先停止录音，确保不再产生新的音频数据
       if (AudioUtil.isRecording) {
         await AudioUtil.stopRecording();
@@ -929,21 +928,27 @@ class XiaozhiService {
       }
 
       // ⭐ 修复：等待更长时间，确保最后的音频数据发送完成
-      // 考虑到网络延迟和缓冲，增加等待时间
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // ⭐ 修复：取消音频流订阅，停止发送音频数据
-      if (_audioStreamSubscription != null) {
-        await _audioStreamSubscription?.cancel();
-        _audioStreamSubscription = null;
-        print('$TAG: 已取消音频流订阅');
-      }
+      // 考虑到网络延迟和缓冲，增加等待时间到500ms
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // ⭐ 修复：发送停止监听命令，告诉服务器处理已收到的音频
       if (_sessionId != null && _messageManager != null) {
         await _messageManager!.sendVoiceListenStop();
         print('$TAG: 已发送停止监听命令，服务器开始处理音频');
       }
+
+      // ⭐ 修复：再等待一小段时间确保停止命令发送完成
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // ⭐ 修复：最后取消音频流订阅，停止发送音频数据
+      if (_audioStreamSubscription != null) {
+        await _audioStreamSubscription?.cancel();
+        _audioStreamSubscription = null;
+        print('$TAG: 已取消音频流订阅');
+      }
+
+      // ⭐ 修复：最后设置标志，确保所有音频数据都已处理
+      _isPushToTalkMode = false;
 
       print('$TAG: 按住说话停止完成，等待服务器响应');
     } catch (e) {

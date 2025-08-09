@@ -641,9 +641,6 @@ class AudioUtil {
 
     print('$TAG: 开始停止录音流程');
 
-    // ⭐ 修复：立即设置录音状态为false，防止新的音频数据被处理
-    _isRecording = false;
-
     // 取消定时器
     _audioProcessingTimer?.cancel();
 
@@ -652,12 +649,16 @@ class AudioUtil {
       final path = await _audioRecorder.stop();
       print('$TAG: 录音已停止，路径: $path');
 
-      // ⭐ 修复：等待一小段时间确保音频流完全结束
-      await Future.delayed(const Duration(milliseconds: 100));
+      // ⭐ 修复：等待更长时间确保音频流完全结束和缓冲区清空
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // ⭐ 修复：最后设置录音状态为false，确保所有音频数据都已处理
+      _isRecording = false;
 
       return path;
     } catch (e) {
       print('$TAG: 停止录音失败: $e');
+      _isRecording = false;
       return null;
     }
   }
