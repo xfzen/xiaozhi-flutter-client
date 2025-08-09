@@ -25,7 +25,7 @@ class AudioUtil {
   static bool _isPlayerInitialized = false;
   static bool _isRecording = false;
   static bool _isPlaying = false;
-  static final StreamController<Uint8List> _audioStreamController =
+  static StreamController<Uint8List> _audioStreamController =
       StreamController<Uint8List>.broadcast();
   static String? _tempFilePath;
   static Timer? _audioProcessingTimer;
@@ -431,6 +431,26 @@ class AudioUtil {
     }
   }
 
+  /// 重新初始化音频流，清空缓冲
+  static Future<void> _reinitializeAudioStream() async {
+    try {
+      // 如果音频流控制器没有关闭，先关闭它
+      if (!_audioStreamController.isClosed) {
+        await _audioStreamController.close();
+      }
+
+      // 重新创建音频流控制器
+      _audioStreamController = StreamController<Uint8List>.broadcast();
+      print('$TAG: ✅ 音频流已重新初始化，缓冲已清空');
+    } catch (e) {
+      print('$TAG: ⚠️ 重新初始化音频流失败: $e');
+      // 如果失败，确保至少有一个可用的控制器
+      if (_audioStreamController.isClosed) {
+        _audioStreamController = StreamController<Uint8List>.broadcast();
+      }
+    }
+  }
+
   /// 释放资源
   static Future<void> dispose() async {
     await stopPlaying();
@@ -458,6 +478,11 @@ class AudioUtil {
       // 等待一小段时间确保完全停止
       await Future.delayed(const Duration(milliseconds: 200));
     }
+
+    // ⭐ 修复：清空音频流缓冲，避免上一次录音的残留数据
+    print('$TAG: 🧹 准备清空音频流缓冲');
+    // 由于StreamController是final的，我们通过重新初始化来清空缓冲
+    await _reinitializeAudioStream();
 
     try {
       print('$TAG: 🎤 尝试启动录音');
@@ -565,10 +590,21 @@ class AudioUtil {
                 return;
               }
 
-              // ⭐ 修复：再次检查录音状态，确保不发送过期数据
+              // ⭐ 修复：检查录音状态，但允许处理停止录音后的缓冲数据
+              // 只有在明确停止录音且缓冲时间已过时才停止处理
               if (!_isRecording) {
-                print('$TAG: ⚠️ 录音状态已变更，停止处理音频包 #$packetCounter');
-                return;
+                final currentTime = DateTime.now().millisecondsSinceEpoch;
+                final timeSinceRecordingStart =
+                    currentTime - recordingStartTime;
+                // 允许在停止录音后继续处理1秒内的缓冲数据
+                if (timeSinceRecordingStart > 1000) {
+                  print('$TAG: ⚠️ 录音已停止且缓冲时间已过，停止处理音频包 #$packetCounter');
+                  return;
+                }
+                // 否则继续处理缓冲中的音频数据
+                print(
+                  '$TAG: 📦 处理停止录音后的缓冲音频包 #$packetCounter (已录音${timeSinceRecordingStart}ms)',
+                );
               }
 
               try {
@@ -650,10 +686,12 @@ class AudioUtil {
       print('$TAG: 录音已停止，路径: $path');
 
       // ⭐ 修复：等待更长时间确保音频流完全结束和缓冲区清空
-      await Future.delayed(const Duration(milliseconds: 300));
+      // 但不要立即设置_isRecording为false，让音频流处理完剩余数据
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      // ⭐ 修复：最后设置录音状态为false，确保所有音频数据都已处理
+      // ⭐ 修复：延迟设置录音状态为false，确保所有音频数据都已处理
       _isRecording = false;
+      print('$TAG: 录音状态已设置为false，音频流处理完成');
 
       return path;
     } catch (e) {
